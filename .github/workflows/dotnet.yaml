@@ -88,7 +88,8 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: HallPass.csproj
-          path: src/HallPass/HallPass.csproj
+
+      - run: cp HallPass.csproj src/HallPass/HallPass.csproj
 
       - run: dotnet pack -c Release -o . src/HallPass/HallPass.csproj
       - run: dotnet nuget push *.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
