@@ -68,6 +68,14 @@ jobs:
         with:
           proj-path: src/HallPass/HallPass.csproj
 
+      - name: save csproj with updated version for later
+        uses: actions/upload-artifact@v2
+        with:
+          name: HallPass.csproj
+          path: src/HallPass/HallPass.csproj
+          if-no-files-found: error
+          retention-days: 1
+
 
   pack_and_publish:
     runs-on: ubuntu-latest
@@ -76,8 +84,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: |
-          echo "VERSION: ${{ needs.get_version.outputs.version }}"
+      - name: get latest csproj file
+        uses: actions/download-artifact@v2
+        with:
+          name: HallPass.csproj
+          path: src/HallPass/HallPass.csproj
 
       - run: dotnet pack -c Release -o . src/HallPass/HallPass.csproj
       - run: dotnet nuget push *.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
