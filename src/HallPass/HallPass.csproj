@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+    <PackageId>HallPass</PackageId>
+    <Version>0.0.8</Version>
+    <Title>HallPass</Title>
+    <Description>.NET SDK for the HallPass service</Description>
+    <Authors>Michael Harris</Authors>
+    <Company>Bamboo Software, LLC</Company>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryType>Git</RepositoryType>
+    <RepositoryUrl>https://github.com/BambooSoftwareLLC/HallPass</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+</Project>
