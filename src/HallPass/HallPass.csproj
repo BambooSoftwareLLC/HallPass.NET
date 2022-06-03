@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <PackageId>HallPass</PackageId>
-    <Version>0.0.9</Version>
+    <Version>0.0.10</Version>
     <Title>HallPass</Title>
     <Description>.NET SDK for the HallPass service</Description>
     <Authors>Michael Harris</Authors>
