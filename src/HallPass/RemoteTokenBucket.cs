@@ -21,7 +21,7 @@ namespace HallPass
             _timeService = timeService;
             _hallPass = hallPass;
             _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = periodDuration * 1.02;
+            _periodDuration = periodDuration * 1.05;
             _key = key ?? Guid.NewGuid().ToString();
             _instanceId = instanceId ?? Guid.NewGuid().ToString();
         }
