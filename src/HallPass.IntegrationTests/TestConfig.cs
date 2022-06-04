@@ -13,8 +13,8 @@ namespace HallPass.IntegrationTests
             return builder.Build();
         }
 
-        public static string HallPassClientId(this IConfiguration config) => config.GetValue<string>("HallPass:Api:ClientId");
-        public static string HallPassClientSecret(this IConfiguration config) => config.GetValue<string>("HallPass:Api:ClientSecret");
-        public static string HallPassBaseUrl(this IConfiguration config) => config.GetValue<string>("HallPass:Api:BaseUrl");
+        public static string HallPassClientId(this IConfiguration config) => config.GetValue<string>("HallPass_Api_ClientId");
+        public static string HallPassClientSecret(this IConfiguration config) => config.GetValue<string>("HallPass_Api_ClientSecret");
+        public static string HallPassBaseUrl(this IConfiguration config) => config.GetValue<string>("HallPass_Api_BaseUrl");
     }
 }
