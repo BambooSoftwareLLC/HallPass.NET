@@ -1,11 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31321.278
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32526.322
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HallPass", "HallPass\HallPass.csproj", "{5F7316FB-3C31-4FF0-AA13-63973B0DBACC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HallPass.UnitTests", "HallPass.UnitTests\HallPass.UnitTests.csproj", "{678C5345-1CBD-4EDD-9451-B7B4F19B1111}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HallPass.UnitTests", "HallPass.UnitTests\HallPass.UnitTests.csproj", "{678C5345-1CBD-4EDD-9451-B7B4F19B1111}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HallPass.IntegrationTests", "HallPass.IntegrationTests\HallPass.IntegrationTests.csproj", "{1153F739-AF3A-4219-8F5E-36A2E0225B4B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HallPass.TestHelpers", "HallPass.TestHelpers\HallPass.TestHelpers.csproj", "{468C2309-FC8A-4715-98B3-56B22D5E9E89}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +25,14 @@ Global
 		{678C5345-1CBD-4EDD-9451-B7B4F19B1111}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{678C5345-1CBD-4EDD-9451-B7B4F19B1111}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{678C5345-1CBD-4EDD-9451-B7B4F19B1111}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1153F739-AF3A-4219-8F5E-36A2E0225B4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1153F739-AF3A-4219-8F5E-36A2E0225B4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1153F739-AF3A-4219-8F5E-36A2E0225B4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1153F739-AF3A-4219-8F5E-36A2E0225B4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{468C2309-FC8A-4715-98B3-56B22D5E9E89}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{468C2309-FC8A-4715-98B3-56B22D5E9E89}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{468C2309-FC8A-4715-98B3-56B22D5E9E89}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{468C2309-FC8A-4715-98B3-56B22D5E9E89}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
