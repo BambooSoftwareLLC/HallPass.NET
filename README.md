@@ -42,7 +42,7 @@ builder.Services.UseHallPass(config =>
         1000,
         TimeSpan.FromMinutes(1));
 
-    // or even a Func<IServiceProvider, bool>
+    // or even a Func<IServiceCollection, bool>
     config.UseTokenBucket(
         services => ...something returning true/false...,
         50000,
