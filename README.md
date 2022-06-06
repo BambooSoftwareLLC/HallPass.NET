@@ -106,6 +106,11 @@ var tasks = Enumerable
 await Task.WhenAll(tasks);
 ```
 
+## COMING SOON
+
+- Throttle a Bunch of Calls Across Distributed Systems
+- More Bucket Types (_Leaky Bucket_, _Fixed Window_, _Sliding Log_, _Sliding Window_, _Query Cost_)
+
 ### COMING SOON: Throttle a Bunch of Calls Across Distributed Systems
 
 Soon, HallPass will be able to throttle calls across distributed systems. If you have multiple instances of an application running at once, but need to respect a single external API rate limit, or if you have multiple different applications running but still need to respect a single external API rate limit between all instances and applications, you'd be able to do so with minimal code changes.
@@ -142,3 +147,7 @@ HallPass will take care of registering individual instances, "fairly" dolling ou
 HallPass will never know what endpoints you're calling, because the actual API call is still handled locally within each application. All that HallPass receives is an encrypted unique ID representing each scoped throttle group, and the bucket type used for that key.
 
 API calls to the HallPass service will be limited. Broadly, the SDK will request and store bunches of _HallPasses_ that can be used locally. When the local cache runs out, it will reach out to the API again for a refill.
+
+### COMING SOON: More Bucket Types
+
+Please let us know which bucket types would be valuable to have. Most likely, we're going with _Leaky Bucket_ next. _Query Cost_ will likely either need significant configuration on the side of the user, or will need to be tailored to individual APIs.
