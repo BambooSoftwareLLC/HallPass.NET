@@ -1,7 +1,9 @@
 # HallPass - PRE-RELEASE
+
 Client-side rate limiter library for .NET to help client-side developers respect the rate limits of the APIs that they consume.
 
 ## Installation
+
 ```
 // nuget package manager
 Install-Package HallPass
@@ -11,65 +13,88 @@ dotnet add package HallPass
 ```
 
 ## Usage
-Suppose you want to consume an API with the endpoint `https://api.foo.com/users`, which imposes a rate limit of **10 requests per minute**, implemented via a standard Token Bucket algorithm where you can burst 10 requests every minute.
 
-To respect this rate limit in our application, we should create a single `IHallMonitor` keyed to this endpoint with the correct `IPolicy`:
-```
-IPolicy policy = Policies.TokenBucket(requestsPerPeriod: 10, periodDuration: TimeSpan.FromMinutes(1));
-IHallMonitor usersMonitor = new LocalHallMonitor("https://api.foo.com/users", policy);
-```
-
-Then, anywhere in our application that needs to rate limit this particular API, we can use our `IHallMonitor` like this:
-```
-var userId = 13;
-FooResult result = await usersMonitor.Request<FooResult>(() => RequestFromFooAsync($"https://api.foo.com/users/{userId}"));
-```
-
-### Throttle a Single Call
-To throttle a request anywhere in your application, just make sure you're using the same `IHallMonitor` for a given endpoint at each place that you want to share the same rate limit.
+### Configuration
 
 ```
-// somewhere in your configuration
-var policy = Policies.TokenBucket(requestsPerPeriod: 10, periodDuration: TimeSpan.FromMinutes(1));
-var hallMonitor = new LocalHallMonitor("some/unique/uri/with/a/rate/limit", policy);
+using HallPass;
 
-// somewhere in your application
-FooResult result = await hallMonitor.Request<FooResult>(() => RequestFromExternalApiAsync());
-```
-
-### Throttle a Bunch of Calls in a Loop
-HallPass works for synchronous loops (within async methods) by simply awaiting until it has permission to proceed based on the provided `IPolicy`.
-
-```
-var policy = Policies.TokenBucket(requestsPerPeriod: 10, periodDuration: TimeSpan.FromMinutes(1));
-var hallMonitor = new LocalHallMonitor("some/unique/uri/with/a/rate/limit", policy);
-
-var results = new List<FooResult>();
-
-var idsToGet = Enumerable.Range(1, 500);
-foreach (var id in idsToGet)
+...
+// HallPass extension method
+builder.Services.UseHallPass(config =>
 {
-    FooResult result = await hallMonitor.Request<FooResult>(() => RequestFromExternalApiAsync(id));
-    results.Add(result);
+    // local buckets, for single instance
+    config.UseTokenBucket("api.foo.com/users", requestsPerPeriod: 100, periodDuration: TimeSpan.FromMinutes(15));
+
+    // can also use a Func<HttpRequestMessage, bool> to resolve whether to throttle or not
+    config.UseTokenBucket(
+        httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains("api.foo.com/posts"),
+        1000,
+        TimeSpan.FromMinutes(1));
+
+    // and we can even use the service collection, via Func<IServiceProvider, bool> to determine whether to throttle or not
+    config.UseTokenBucket(
+        services => ...something returning true/false...,
+        50000,
+        TimeSpan.FromHours(24));
+
+    // remote buckets, for coordinating clusters of services
+    config.UseTokenBucket("api.bar.com/statuses", 50, TimeSpan.FromMinutes(1)).ForMultipleInstances("my-client-id", "my-client-secret");
+});
+```
+
+### Usage - Throttle a single call
+
+```
+using HallPass;
+
+...
+
+class MyService
+{
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public MyService(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
+    public async Task<FooUser> GetFooUserAsync(string userId, CancellationToken token = default)
+    {
+        // HallPass extension method
+        HttpClient httpClient = _httpClientFactory.CreateHallPassClient();
+
+        ...
+        // this line will wait, if necessary, so the frequency remains within 100 requests per 15 minutes WITHIN THIS SINGLE APP, as defined in the configuration
+        await httpClient.GetAsync($"https://api.foo.com/users/{userId}", token);
+    }
 }
 ```
 
-In this example, the first 10 requests would burst immediately, and then the 11th would be awaited for roughly _1 minute_, at which point it would burst 11-20... at which point it would wait roughly another minute, etc.
+### Usage - Throttle a bunch of calls in a loop
 
-### Throttle a Bunch of Calls Concurrently
-HallPass is also thread-safe, working as expected for concurrent bunches of requests:
+HallPass works for synchronous loops (within async methods) by simply awaiting until it has permission to proceed based on the configuration.
 
 ```
-var policy = Policies.TokenBucket(requestsPerPeriod: 10, periodDuration: TimeSpan.FromMinutes(1));
-var hallMonitor = new LocalHallMonitor("some/unique/uri/with/a/rate/limit", policy);
+var userIds = Enumerable.Range(1, 500);
+foreach (var userId in userIds)
+{
+    // this line will wait, if necessary, so the frequency remains within 100 requests per 15 minutes WITHIN THIS SINGLE APP, as defined in the configuration
+    await httpClient.GetAsync($"https://api.foo.com/users/{userId}", token);
+}
+```
 
-var results = new List<FooResult>();
+### Usage - Throttle a bunch of calls concurrently
+
+HallPass is also thread-safe, working as expected for concurrent bunches of requests.
+
+```
 var tasks = Enumerable
     .Range(1, 500)
-    .Select(id => Task.Run(async () =>
+    .Select(userId => Task.Run(async () =>
     {
-        var result = await hallMonitor.Request<FooResult>(() => RequestFromExternalApiAsync(id));
-        results.Add(result);
+        // this line will wait, if necessary, so the frequency remains within 100 requests per 15 minutes WITHIN THIS SINGLE APP, as defined in the configuration
+        await httpClient.GetAsync($"https://api.foo.com/users/{userId}", token);
     }))
     .ToList();
 
@@ -77,17 +102,44 @@ await Task.WhenAll(tasks);
 ```
 
 ### COMING SOON: Throttle a Bunch of Calls Across Distributed Systems
-Eventually, HallPass will be able to throttle calls across distributed systems. If you have multiple instances of an application running at once, but need to respect a single external API rate limit, or if you have multiple different applications running but still need to respect a single external API rate limit between all instances and applications, you'd be able to do so like this:
+
+Soon, HallPass will be able to throttle calls across distributed systems. If you have multiple instances of an application running at once, but need to respect a single external API rate limit, or if you have multiple different applications running but still need to respect a single external API rate limit between all instances and applications, you'd be able to do so with minimal code changes.
+
+This will be a paid service, and the HallPass API itself will be rate-limited (with basic throttling and retries handled via the SDK code). We're still finalizing the pricing model, but hope to have a free tier available to demo soon!
+
+#### Configuration
 
 ```
-// in the configuration of each of your client instances/applications
-var policy = Policies.TokenBucket(requestsPerPeriod: 10, periodDuration: TimeSpan.FromMinutes(1));
-var hallMonitor = new DistributedHallMonitor("some/unique/uri/with/a/rate/limit", policy, "your-hallpass-app-key", "your-hallpass-app-secret");
+using HallPass;
 
-// in your instances/applications
-FooResult result = await hallMonitor.Request<FooResult>(() => RequestFromExternalApiAsync());
+...
+// HallPass extension method
+builder.Services.UseHallPass(config =>
+{
+    // remote buckets, for coordinating clusters of services
+    config
+        .UseTokenBucket("api.bar.com/statuses", 50, TimeSpan.FromMinutes(1))
+
+        // client id and secret provided when registering an app in your HallPass dashboard
+        .ForMultipleInstances("my-client-id", "my-client-secret");
+});
+```
+
+#### Usage
+
+```
+using HallPass;
+
+...
+
+HttpClient httpClient = _httpClientFactory.CreateHallPassClient();
+
+/* this line will wait, if necessary, so the frequency remains within 50 requests
+   per 1 minute ACROSS ALL DISTRIBUTED INSTANCES for the given HallPass client_id,
+   as defined in the configuration */
+await httpClient.GetAsync($"https://api.bar.com/statuses");
 ```
 
 HallPass will take care of registering individual instances, "fairly" dolling out permissions, and tracking the global rate limit for your account/app and its usage on our servers.
 
-HallPass will never know what endpoints you're calling, because the actual API call is still handled locally within each application. All that HallPass receives is an encrypted unique ID representing each `IHallMonitor`'s unique key, and the policy used for that key.
+HallPass will never know what endpoints you're calling, because the actual API call is still handled locally within each application. All that HallPass receives is an encrypted unique ID representing each scoped throttle group, and the bucket type used for that key.
