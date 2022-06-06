@@ -18,6 +18,8 @@ dotnet add package HallPass
 
 ## Usage
 
+:warning: the examples below are only proposals, not yet quite implemented...
+
 ### Configuration
 
 ```
