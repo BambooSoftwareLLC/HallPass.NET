@@ -28,7 +28,7 @@ using HallPass;
 ...
 
 // HallPass extension method
-builder.Services.UseHallPass(config =>
+builder.Services.AddHallPass(config =>
 {
     // throttle all requests matching a uri pattern
     config.UseTokenBucket(
@@ -120,7 +120,7 @@ Soon, HallPass will be able to throttle calls across distributed systems. If you
 #### Configuration
 
 ```
-builder.Services.UseHallPass(config =>
+builder.Services.AddHallPass(config =>
 {
     // remote buckets, for coordinating clusters of services
     config
