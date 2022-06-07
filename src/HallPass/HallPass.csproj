@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <PackageReference Include="LazyCache" Version="2.4.0" />
+    <PackageReference Include="lazycache.aspnetcore" Version="2.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
   </ItemGroup>
 
 </Project>

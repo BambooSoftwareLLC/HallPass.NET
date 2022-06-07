@@ -1,4 +1,6 @@
-﻿namespace HallPass
+﻿using HallPass.Helpers;
+
+namespace HallPass
 {
     public class AcceleratedTimeService : ITimeService
     {

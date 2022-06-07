@@ -1,29 +1,31 @@
-﻿using LazyCache;
+﻿using HallPass.Buckets;
+using HallPass.Configuration;
+using HallPass.Helpers;
+using LazyCache;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HallPass
+namespace HallPass.Api
 {
-    internal class HallPassApi : IHallPassApi
+    internal sealed class HallPassApi : IHallPassApi
     {
         private readonly IAppCache _cache;
-        private readonly HttpClient _httpClient;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly ITimeService _timeService;
 
         private readonly string _clientId;
         private readonly string _clientSecret;
 
-        public HallPassApi(IAppCache cache, HttpClient httpClient, ITimeService timeService, string clientId, string clientSecret)
+        public HallPassApi(IAppCache cache, IHttpClientFactory httpClientFactory, ITimeService timeService, string clientId, string clientSecret)
         {
             _cache = cache;
-            _httpClient = httpClient;
+            _httpClientFactory = httpClientFactory;
             _timeService = timeService;
             _clientId = clientId;
             _clientSecret = clientSecret;
@@ -41,7 +43,9 @@ namespace HallPass
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"hallpasses?key={key}&instanceId={instanceId}&requestsPerPeriod={requestsPerPeriod}&periodDurationMilliseconds={periodDuration.TotalMilliseconds}");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
-            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+
+            var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
+            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
                 return new List<Ticket>();
 
@@ -59,10 +63,11 @@ namespace HallPass
             var credentials = new { client_id = _clientId, client_secret = _clientSecret };
             request.Content = new StringContent(JsonSerializer.Serialize(credentials), Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
+            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                throw new System.NotImplementedException("handle auth error");
+                throw new NotImplementedException("handle auth error");
             }
 
             var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);

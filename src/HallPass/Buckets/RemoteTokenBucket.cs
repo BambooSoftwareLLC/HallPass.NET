@@ -1,13 +1,15 @@
-﻿using System;
+﻿using HallPass.Api;
+using HallPass.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HallPass
+namespace HallPass.Buckets
 {
-    internal class RemoteTokenBucket : IBucket
+    internal sealed class RemoteTokenBucket : IBucket
     {
-        private readonly ConcurrentSortedStack<Ticket> _tickets = new(Comparer<Ticket>.Create((a,b) => a.ValidFrom.CompareTo(b.ValidFrom)));
+        private readonly ConcurrentSortedStack<Ticket> _tickets = new(Comparer<Ticket>.Create((a, b) => a.ValidFrom.CompareTo(b.ValidFrom)));
         private readonly ITimeService _timeService;
         private readonly IHallPassApi _hallPass;
 

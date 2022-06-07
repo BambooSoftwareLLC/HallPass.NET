@@ -15,6 +15,5 @@ namespace HallPass.IntegrationTests
 
         public static string HallPassClientId(this IConfiguration config) => config.GetValue<string>("HallPass_Api_ClientId");
         public static string HallPassClientSecret(this IConfiguration config) => config.GetValue<string>("HallPass_Api_ClientSecret");
-        public static string HallPassBaseUrl(this IConfiguration config) => config.GetValue<string>("HallPass_Api_BaseUrl");
     }
 }

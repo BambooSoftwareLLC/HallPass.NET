@@ -1,16 +1,17 @@
-﻿using System;
+﻿using HallPass.Helpers;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HallPass
+namespace HallPass.Buckets
 {
-    internal class TokenBucket : IBucket
+    internal sealed class TokenBucket : IBucket
     {
         private readonly ConcurrentQueue<Ticket> _tickets = new ConcurrentQueue<Ticket>();
 
         private static int _refilling = 0;
-        
+
         private DateTimeOffset _lastRefill = DateTimeOffset.MinValue;
 
         private readonly int _requestsPerPeriod;

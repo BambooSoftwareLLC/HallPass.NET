@@ -2,9 +2,9 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HallPass
+namespace HallPass.Helpers
 {
-    class TimeService : ITimeService
+    internal sealed class TimeService : ITimeService
     {
         public DateTimeOffset GetNow() => DateTimeOffset.Now;
         public async Task DelayAsync(int milliseconds, CancellationToken cancellationToken = default) => await Task.Delay(milliseconds, cancellationToken);

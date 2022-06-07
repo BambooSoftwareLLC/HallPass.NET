@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace HallPass
+namespace HallPass.Api
 {
-    public class AccessToken
+    internal sealed class AccessToken
     {
         public AccessToken(string token, string scope, DateTimeOffset expiration, string tokenType)
         {
@@ -13,7 +13,7 @@ namespace HallPass
         }
 
         public string Token { get; }
-        
+
         /// <summary>
         /// Comma-separated list of scopes
         /// </summary>

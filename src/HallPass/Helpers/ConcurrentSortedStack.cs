@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace HallPass
+namespace HallPass.Helpers
 {
     /// <summary>
     /// A thread-safe generic sorted stack, prioritizing fast front removals and insertions of multiple items less than O(n)
     /// </summary>
     /// <typeparam name="TItem"></typeparam>
-    public sealed class ConcurrentSortedStack<TItem>
+    internal sealed class ConcurrentSortedStack<TItem>
     {
         private readonly LinkedList<TItem> _stack = new();
         private readonly IComparer<TItem> _comparer;
@@ -41,7 +41,7 @@ namespace HallPass
                     item = _stack.First.Value;
                     _stack.RemoveFirst();
                     return true;
-                }   
+                }
             }
         }
 
@@ -128,7 +128,7 @@ namespace HallPass
                     var current = _stack.First;
                     foreach (var item in sortedItems)
                     {
-                        while(true)
+                        while (true)
                         {
                             // current will eventually be null if we make it all the way through the loop
                             // for subsequent items, we'll also want to immediately add them last

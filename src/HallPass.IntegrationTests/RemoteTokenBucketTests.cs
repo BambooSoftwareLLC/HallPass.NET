@@ -1,4 +1,9 @@
-﻿using LazyCache;
+﻿using HallPass.Api;
+using HallPass.Buckets;
+using HallPass.Configuration;
+using HallPass.Helpers;
+using LazyCache;
+using NSubstitute;
 using Shouldly;
 using System.Collections.Concurrent;
 
@@ -13,8 +18,14 @@ namespace HallPass.IntegrationTests
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
-            using var httpClient = new HttpClient() { BaseAddress = new Uri(TestConfig.GetConfiguration().HallPassBaseUrl()) };
-            var hallPass = new HallPassApi(cache, httpClient, timeService, clientId, clientSecret);
+            using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
+
+            var httpClientFactory = Substitute.For<IHttpClientFactory>();
+            httpClientFactory
+                .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
+                .Returns(httpClient);
+
+            var hallPass = new HallPassApi(cache, httpClientFactory, timeService, clientId, clientSecret);
             var bucket = new RemoteTokenBucket(timeService, hallPass, 5, TimeSpan.FromSeconds(5));
 
             var spy = new List<DateTimeOffset>();
@@ -40,8 +51,14 @@ namespace HallPass.IntegrationTests
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
-            using var httpClient = new HttpClient() { BaseAddress = new Uri(TestConfig.GetConfiguration().HallPassBaseUrl()) };
-            var hallPass = new HallPassApi(cache, httpClient, timeService, clientId, clientSecret);
+
+            using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
+            var httpClientFactory = Substitute.For<IHttpClientFactory>();
+            httpClientFactory
+                .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
+                .Returns(httpClient);
+
+            var hallPass = new HallPassApi(cache, httpClientFactory, timeService, clientId, clientSecret);
             var bucket = new RemoteTokenBucket(timeService, hallPass, 5, TimeSpan.FromSeconds(2));
 
             var spy = new ConcurrentBag<DateTimeOffset>();
@@ -72,7 +89,12 @@ namespace HallPass.IntegrationTests
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
-            using var httpClient = new HttpClient() { BaseAddress = new Uri(TestConfig.GetConfiguration().HallPassBaseUrl()) };
+
+            using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
+            var httpClientFactory = Substitute.For<IHttpClientFactory>();
+            httpClientFactory
+                .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
+                .Returns(httpClient);
 
             var spy = new ConcurrentBag<DateTimeOffset>();
 
@@ -80,8 +102,7 @@ namespace HallPass.IntegrationTests
             var buckets = Enumerable.Range(1, 5).Select(_ =>
             {
                 var localCache = new CachingService();
-                //var localHttp = new HttpClient() { BaseAddress = new Uri(TestConfig.GetConfiguration().HallPassBaseUrl()) };
-                var localHallPass = new HallPassApi(localCache, httpClient, timeService, clientId, clientSecret);
+                var localHallPass = new HallPassApi(localCache, httpClientFactory, timeService, clientId, clientSecret);
                 var bucket = new RemoteTokenBucket(timeService, localHallPass, 5, TimeSpan.FromSeconds(2), sharedKey);
                 return bucket;
             });
@@ -118,7 +139,12 @@ namespace HallPass.IntegrationTests
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
-            using var httpClient = new HttpClient() { BaseAddress = new Uri(TestConfig.GetConfiguration().HallPassBaseUrl()) };
+
+            using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
+            var httpClientFactory = Substitute.For<IHttpClientFactory>();
+            httpClientFactory
+                .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
+                .Returns(httpClient);
 
             var spy = new ConcurrentBag<DateTimeOffset>();
 
@@ -127,7 +153,7 @@ namespace HallPass.IntegrationTests
             {
                 var localCache = new CachingService();
                 //var localHttp = new HttpClient() { BaseAddress = new Uri(TestConfig.GetConfiguration().HallPassBaseUrl()) };
-                var localHallPass = new HallPassApi(localCache, httpClient, timeService, clientId, clientSecret);
+                var localHallPass = new HallPassApi(localCache, httpClientFactory, timeService, clientId, clientSecret);
                 var bucket = new RemoteTokenBucket(timeService, localHallPass, 5, TimeSpan.FromSeconds(2), sharedKey);
                 return bucket;
             });

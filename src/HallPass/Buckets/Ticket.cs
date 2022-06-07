@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace HallPass
+namespace HallPass.Buckets
 {
-    internal class Ticket
+    internal sealed class Ticket
     {
         public Ticket(DateTimeOffset validFrom, DateTimeOffset validTo)
         {
