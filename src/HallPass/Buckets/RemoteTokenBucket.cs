@@ -23,7 +23,7 @@ namespace HallPass.Buckets
             _timeService = timeService;
             _hallPass = hallPass;
             _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = periodDuration * 1.05;
+            _periodDuration = timeService.BufferDuration(periodDuration);
             _key = key ?? Guid.NewGuid().ToString();
             _instanceId = instanceId ?? Guid.NewGuid().ToString();
         }
@@ -57,7 +57,7 @@ namespace HallPass.Buckets
         // This could even serve as the basis of most bucket implementations, where the fancy logic is all in refill.
         private async Task RefillAsync(CancellationToken cancellationToken)
         {
-            var tickets = await _hallPass.GetTicketsAsync(_key, _instanceId, _requestsPerPeriod, _timeService.GetDuration(_periodDuration), cancellationToken);
+            var tickets = await _hallPass.GetTicketsAsync(_key, _instanceId, _requestsPerPeriod, _periodDuration, cancellationToken);
             _tickets.Add(tickets);
         }
 

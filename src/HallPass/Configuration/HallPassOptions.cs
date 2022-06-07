@@ -10,10 +10,22 @@ namespace HallPass
 {
     public sealed class HallPassOptions
     {
-        public static HallPassOptions Default => new();
+        public static HallPassOptions Default
+        {
+            get
+            {
+                var options = new HallPassOptions();
+
+                options.DurationBuffer = DurationBuffers.Moderate;
+
+                return options;
+            }
+        }
 
         private readonly List<IBucketConfigurationBuilder> _bucketConfigurationBuilders = new();
         internal IEnumerable<IBucketConfigurationBuilder> BucketConfigurationBuilders => _bucketConfigurationBuilders;
+
+        public Func<TimeSpan, TimeSpan> DurationBuffer { get; set; }
 
         public IBucketConfigurationBuilder UseTokenBucket(string uriPattern, int requests, TimeSpan duration)
         {

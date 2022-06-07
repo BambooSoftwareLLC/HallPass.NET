@@ -21,7 +21,7 @@ namespace HallPass.Buckets
         public TokenBucket(int requestsPerPeriod, TimeSpan periodDuration, ITimeService timeService)
         {
             _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = periodDuration * 1.02;
+            _periodDuration = timeService.BufferDuration(periodDuration);
             _timeService = timeService;
         }
 

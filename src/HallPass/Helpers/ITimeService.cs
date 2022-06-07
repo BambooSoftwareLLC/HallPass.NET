@@ -8,6 +8,7 @@ namespace HallPass.Helpers
     {
         DateTimeOffset GetNow();
         TimeSpan GetDuration(TimeSpan timeSpan);
+        TimeSpan BufferDuration(TimeSpan timeSpan);
         Task DelayAsync(int milliseconds, CancellationToken cancellationToken = default);
         Task DelayAsync(TimeSpan timeSpan, CancellationToken cancellationToken = default);
     }

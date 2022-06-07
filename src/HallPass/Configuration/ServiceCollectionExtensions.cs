@@ -25,7 +25,7 @@ namespace HallPass
             });
 
             // register other dependencies
-            services.AddSingleton<ITimeService, TimeService>();
+            services.AddSingleton<ITimeService>(_ => new TimeService(options.DurationBuffer));
             services.AddTransient<HallPassApiFactory>();
             services.AddLazyCache();
 

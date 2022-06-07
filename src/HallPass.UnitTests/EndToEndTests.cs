@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using HallPass.TestHelpers;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System;
 using System.Collections.Concurrent;
@@ -15,13 +16,15 @@ namespace HallPass.UnitTests
         [Fact]
         public async Task Can_make_a_single_request()
         {
+            var uri = TestEndpoints.GetRandom();
+
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
 
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseTokenBucket("https://catfact.ninja/fact", 10, TimeSpan.FromSeconds(5));
+                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
             });
 
 
@@ -29,7 +32,7 @@ namespace HallPass.UnitTests
             var serviceProvider = services.BuildServiceProvider(validateScopes: true);
             var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
             var httpClient = httpClientFactory.CreateHallPassClient();
-            var response = await httpClient.GetAsync("https://catfact.ninja/fact");
+            var response = await httpClient.GetAsync(uri);
 
             // make sure nothing blows up
             response.EnsureSuccessStatusCode();
@@ -38,13 +41,16 @@ namespace HallPass.UnitTests
         [Fact]
         public async Task Can_make_looped_requests_that_are_properly_throttled()
         {
+            //var uri = TestEndpoints.GetRandom();
+            var uri = TestEndpoints.Get(0);
+
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
 
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseTokenBucket("https://catfact.ninja/fact", 10, TimeSpan.FromSeconds(5));
+                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
             });
 
             // make a loop of API calls to the throttled endpoint
@@ -57,7 +63,7 @@ namespace HallPass.UnitTests
             var fourteenSecondsLater = DateTimeOffset.Now.AddSeconds(14);
             while (DateTimeOffset.Now < fourteenSecondsLater)
             {
-                var response = await httpClient.GetAsync("https://catfact.ninja/fact");
+                var response = await httpClient.GetAsync(uri);
                 
                 // make sure nothing blows up
                 response.EnsureSuccessStatusCode();
@@ -76,13 +82,15 @@ namespace HallPass.UnitTests
         [Fact]
         public async Task Can_make_concurrent_requests_that_are_properly_throttled()
         {
+            var uri = TestEndpoints.GetRandom();
+
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
 
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseTokenBucket("https://catfact.ninja/fact", 10, TimeSpan.FromSeconds(5));
+                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
             });
 
             // make a concurrent bunch of API calls to the throttled endpoint
@@ -96,7 +104,7 @@ namespace HallPass.UnitTests
                 .Select(_ => Task.Run(async () =>
                 {
                     var httpClient = httpClientFactory.CreateHallPassClient();
-                    var response = await httpClient.GetAsync("https://catfact.ninja/fact");
+                    var response = await httpClient.GetAsync(uri);
 
                     // make sure nothing blows up
                     response.EnsureSuccessStatusCode();

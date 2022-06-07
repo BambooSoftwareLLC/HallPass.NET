@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using HallPass.TestHelpers;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System.Collections.Concurrent;
 
@@ -10,7 +11,8 @@ namespace HallPass.IntegrationTests
         public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled()
         {
             var instances = Enumerable.Range(1, 10);
-            var sharedKey = "https://catfact.ninja/fact";
+            var uri = TestEndpoints.GetRandom();
+            var sharedKey = uri;
 
             var spy = new ConcurrentBag<DateTimeOffset>();
 
@@ -27,8 +29,8 @@ namespace HallPass.IntegrationTests
                     {
                         // use HallPass remotely
                         hallPass
-                            .UseTokenBucket("https://catfact.ninja/fact", 10, TimeSpan.FromSeconds(5))
-                            .ForMultipleInstances(clientId, clientSecret, key: "https://catfact.ninja/fact");
+                            .UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5))
+                            .ForMultipleInstances(clientId, clientSecret, key: uri);
                     });
 
                     // make a loop of API calls to the throttled endpoint
@@ -38,7 +40,7 @@ namespace HallPass.IntegrationTests
                     for (int i = 0; i < 5; i++)
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
-                        var response = await httpClient.GetAsync("https://catfact.ninja/fact");
+                        var response = await httpClient.GetAsync(uri);
 
                         // make sure nothing blows up
                         response.EnsureSuccessStatusCode();
