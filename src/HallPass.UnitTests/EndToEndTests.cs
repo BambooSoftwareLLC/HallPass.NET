@@ -35,7 +35,10 @@ namespace HallPass.UnitTests
             var response = await httpClient.GetAsync(uri);
 
             // make sure nothing blows up
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"URI: {uri}");
+            }
         }
 
         [Fact]
@@ -64,9 +67,12 @@ namespace HallPass.UnitTests
             while (DateTimeOffset.Now < fourteenSecondsLater)
             {
                 var response = await httpClient.GetAsync(uri);
-                
+
                 // make sure nothing blows up
-                response.EnsureSuccessStatusCode();
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"URI: {uri}");
+                }
 
                 spy.Add(DateTimeOffset.Now);
             }
@@ -107,7 +113,10 @@ namespace HallPass.UnitTests
                     var response = await httpClient.GetAsync(uri);
 
                     // make sure nothing blows up
-                    response.EnsureSuccessStatusCode();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        throw new HttpRequestException($"URI: {uri}");
+                    }
 
                     spy.Add(DateTimeOffset.Now);
 

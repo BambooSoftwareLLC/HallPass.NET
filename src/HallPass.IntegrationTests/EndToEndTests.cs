@@ -43,7 +43,10 @@ namespace HallPass.IntegrationTests
                         var response = await httpClient.GetAsync(uri);
 
                         // make sure nothing blows up
-                        response.EnsureSuccessStatusCode();
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            throw new HttpRequestException($"URI: {uri}");
+                        }
 
                         spy.Add(DateTimeOffset.Now);
                     }
