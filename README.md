@@ -18,8 +18,6 @@ dotnet add package HallPass
 
 ## Usage
 
-:warning: the examples below are only proposals, not yet quite implemented...
-
 ### Configuration
 
 ```
@@ -27,7 +25,7 @@ using HallPass;
 
 ...
 
-// HallPass extension method
+// Register HallPass and hook into IHttpClientFactory.CreateHallPassClient() extension method
 builder.Services.AddHallPass(config =>
 {
     // throttle all requests matching a uri pattern
@@ -45,6 +43,8 @@ builder.Services.AddHallPass(config =>
 ```
 
 ### Usage - Throttle a single call
+
+It's highly recommended to use the built-in .NET `IHttpClientFactory` to obtain instances of `HttpClient` when using HallPass. Under the hood, HallPass adds an additional `DelegateHandler` to the named HallPass `HttpClient`, which handles the throttling action per configured endpoint.
 
 ```
 using HallPass;
@@ -87,13 +87,16 @@ foreach (var userId in userIds)
 
 ### Usage - Throttle a bunch of calls concurrently
 
-HallPass is also thread-safe, working as expected for concurrent bunches of requests.
+HallPass is also thread-safe, working as expected for concurrent bunches of requests. In this case, it's generally better to allow `IHttpClientFactory` to manage instances of `HttpClient` per `Task`.
 
 ```
 var tasks = Enumerable
     .Range(1, 500)
     .Select(userId => Task.Run(async () =>
     {
+        // usually it's better to get a client per Task, allowing IHttpClientFactory to manage the concurrency complexity
+        var httpClient = _httpClientFactory.CreateHallPassClient();
+
         // block to keep rate within 100 / 15 minutes WITHIN THIS SINGLE APP INSTANCE
         await httpClient.GetAsync($"https://api.foo.com/users/{userId}", token);
     }))
@@ -121,7 +124,8 @@ builder.Services.AddHallPass(config =>
         .UseTokenBucket("api.bar.com/statuses", 50, TimeSpan.FromMinutes(1))
 
         // client id and secret provided when registering an app in your HallPass dashboard
-        .ForMultipleInstances("my-client-id", "my-client-secret");
+        // 'key' is essential, acting as the shared token used to group/coordinate multiple instances
+        .ForMultipleInstances("my-client-id", "my-client-secret", key: "api.bar.com/statuses");
 });
 ```
 
