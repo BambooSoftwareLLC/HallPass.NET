@@ -46,8 +46,6 @@ namespace HallPass.Api
 
             var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
             var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-                return new List<Ticket>();
 
             var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
 
