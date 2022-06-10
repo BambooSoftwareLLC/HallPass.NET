@@ -23,24 +23,24 @@ namespace HallPass.Configuration
 
         protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var bucketConfiguration = _bucketConfigurations.Value.FirstOrDefault(c => c.IsTriggeredBy(request));
-            if (bucketConfiguration is not null)
-            {
-                var bucket = bucketConfiguration.Bucket;
-                bucket.GetTicketAsync(cancellationToken).Wait(cancellationToken);
-            }
+            var tasks = _bucketConfigurations.Value
+                .Where(c => c.IsTriggeredBy(request))
+                .Select(config => config.Bucket)
+                .Select(bucket => bucket.GetTicketAsync(cancellationToken));
+
+            Task.WhenAll(tasks).Wait(cancellationToken);
 
             return base.Send(request, cancellationToken);
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var bucketConfiguration = _bucketConfigurations.Value.FirstOrDefault(c => c.IsTriggeredBy(request));
-            if (bucketConfiguration is not null)
-            {
-                var bucket = bucketConfiguration.Bucket;
-                await bucket.GetTicketAsync(cancellationToken).ConfigureAwait(false);
-            }
+            var tasks = _bucketConfigurations.Value
+                .Where(c => c.IsTriggeredBy(request))
+                .Select(config => config.Bucket)
+                .Select(bucket => bucket.GetTicketAsync(cancellationToken));
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             return await base.SendAsync(request, cancellationToken);
         }
