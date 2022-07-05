@@ -27,6 +27,15 @@ namespace HallPass
 
         public Func<TimeSpan, TimeSpan> DurationBuffer { get; set; }
 
+        /// <summary>
+        /// Set to TRUE (default is FALSE) to configure the default HttpClient, and use it like this:
+        ///     var httpClient = httpClientFactory.CreateClient();
+        /// 
+        /// ... instead of like this:
+        ///     var httpClient = httpClientFactory.CreateHallPassClient();
+        /// </summary>
+        public bool UseDefaultHttpClient { get; set; } = false;
+
         public IBucketConfigurationBuilder UseTokenBucket(string uriPattern, int requests, TimeSpan duration)
         {
             var builder = new TokenBucketConfigurationBuilder(

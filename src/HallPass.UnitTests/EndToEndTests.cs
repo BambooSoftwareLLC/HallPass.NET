@@ -44,8 +44,7 @@ namespace HallPass.UnitTests
         [Fact]
         public async Task Can_make_looped_requests_that_are_properly_throttled()
         {
-            //var uri = TestEndpoints.GetRandom();
-            var uri = TestEndpoints.Get(0);
+            var uri = TestEndpoints.GetRandom();
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
@@ -241,6 +240,51 @@ namespace HallPass.UnitTests
 
             // 0: 20, 3: 40
             requestsInTime.Count.ShouldBe(40);
+        }
+
+        [Fact]
+        public async Task Can_use_default_HttpClient()
+        {
+            var uri = TestEndpoints.GetRandom();
+
+            // configure dependency injection that uses HallPass configuration extensions
+            var services = new ServiceCollection();
+
+            services.AddHallPass(hallPass =>
+            {
+                hallPass.UseDefaultHttpClient = true;
+
+                // use HallPass locally
+                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
+            });
+
+            // make a loop of API calls to the throttled endpoint
+            var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient();
+
+            var spy = new List<DateTimeOffset>();
+
+            var fourteenSecondsLater = DateTimeOffset.Now.AddSeconds(14);
+            while (DateTimeOffset.Now < fourteenSecondsLater)
+            {
+                var response = await httpClient.GetAsync(uri);
+
+                // make sure nothing blows up
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"URI: {uri}");
+                }
+
+                spy.Add(DateTimeOffset.Now);
+            }
+
+            // make sure calls are throttled as expected
+            var server14SecondsLater = spy.Min().AddSeconds(14);
+            var requestsInTime = spy.Where(s => s <= server14SecondsLater).ToList();
+
+            // 0: 10, 5: 20, 10: 30
+            requestsInTime.Count.ShouldBe(30);
         }
     }
 }

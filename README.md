@@ -20,6 +20,8 @@ dotnet add package HallPass
 
 ### Configuration
 
+#### Using a HallPass-specific HttpClient
+
 ```
 using HallPass;
 
@@ -28,6 +30,33 @@ using HallPass;
 // Register HallPass and hook into IHttpClientFactory.CreateHallPassClient() extension method
 builder.Services.AddHallPass(config =>
 {
+    // throttle all requests matching a uri pattern
+    config.UseTokenBucket(
+        uriPattern: "api.foo.com/users",
+        requestsPerPeriod: 100,
+        periodDuration: TimeSpan.FromMinutes(15));
+
+    // can also use a Func<HttpRequestMessage, bool> to resolve whether to throttle or not
+    config.UseTokenBucket(
+        httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains("api.foo.com/posts"),
+        1000,
+        TimeSpan.FromMinutes(1));
+});
+```
+
+#### Using the default HttpClient
+
+```
+using HallPass;
+
+...
+
+// Register HallPass and hook into IHttpClientFactory.CreateClient()
+builder.Services.AddHallPass(config =>
+{
+    // use the default HttpClient, not just the HallPass specific named client
+    config.UseDefaultHttpClient = true;
+
     // throttle all requests matching a uri pattern
     config.UseTokenBucket(
         uriPattern: "api.foo.com/users",
