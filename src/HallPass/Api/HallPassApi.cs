@@ -4,6 +4,7 @@ using HallPass.Helpers;
 using LazyCache;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -45,14 +46,29 @@ namespace HallPass.Api
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
 
             var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
-            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
 
-            var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            // retry 429's indefinitely
+            while (true)
+            {
+                var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                {
+                    var retryAfterSeconds = response.Headers.RetryAfter.Delta;
+                    if (retryAfterSeconds.HasValue)
+                        await Task.Delay(retryAfterSeconds.Value, cancellationToken);
+                    else
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
 
-            var options = new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            var deserializedResponse = JsonSerializer.Deserialize<HallPassesResponse>(contentJson, options);
+                    continue;
+                }
 
-            return deserializedResponse.hallPasses;
+                var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                var options = new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                var deserializedResponse = JsonSerializer.Deserialize<HallPassesResponse>(contentJson, options);
+
+                return deserializedResponse.hallPasses;
+            }
         }
 
         private async Task<AccessToken> AuthenticateAsync(CancellationToken cancellationToken)
@@ -62,22 +78,38 @@ namespace HallPass.Api
             request.Content = new StringContent(JsonSerializer.Serialize(credentials), Encoding.UTF8, "application/json");
 
             var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
-            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+
+            // retry 429's indefinitely
+            while (true)
             {
-                throw new NotImplementedException("handle auth error");
+                var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                {
+                    var retryAfterSeconds = response.Headers.RetryAfter.Delta;
+                    if (retryAfterSeconds.HasValue)
+                        await Task.Delay(retryAfterSeconds.Value, cancellationToken);
+                    else
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+
+                    continue;
+                }
+
+                else if (!response.IsSuccessStatusCode)
+                {
+                    throw new NotImplementedException("handle auth error");
+                }
+
+                var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
+                var tokenResponse = JsonSerializer.Deserialize<AccessTokenResponse>(contentJson);
+                return new AccessToken(
+                    tokenResponse.access_token,
+                    tokenResponse.scope,
+
+                    // removing a 5-second buffer from the expiration time to be safe
+                    _timeService.GetNow() + _timeService.GetDuration(TimeSpan.FromSeconds(tokenResponse.expires_in - 5)),
+
+                    tokenResponse.token_type);
             }
-
-            var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
-            var tokenResponse = JsonSerializer.Deserialize<AccessTokenResponse>(contentJson);
-            return new AccessToken(
-                tokenResponse.access_token,
-                tokenResponse.scope,
-
-                // removing a 5-second buffer from the expiration time to be safe
-                _timeService.GetNow() + _timeService.GetDuration(TimeSpan.FromSeconds(tokenResponse.expires_in - 5)),
-
-                tokenResponse.token_type);
         }
     }
 
