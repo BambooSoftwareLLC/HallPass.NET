@@ -22,6 +22,20 @@ namespace HallPass
             }
         }
 
+        public static HallPassOptions API
+        {
+            get
+            {
+                var options = Default;
+
+                // register hallpass API rate limits
+                options.UseTokenBucket("https://api.hallpass.dev/oauth/token", 30, TimeSpan.FromMinutes(1));
+                options.UseTokenBucket("https://api.hallpass.dev/hallpasses", 100, TimeSpan.FromMinutes(1));
+
+                return options;
+            }
+        }
+
         private readonly List<IBucketConfigurationBuilder> _bucketConfigurationBuilders = new();
         internal IEnumerable<IBucketConfigurationBuilder> BucketConfigurationBuilders => _bucketConfigurationBuilders;
 
@@ -35,7 +49,7 @@ namespace HallPass
         ///     var httpClient = httpClientFactory.CreateHallPassClient();
         /// </summary>
         public bool UseDefaultHttpClient { get; set; } = false;
-
+        
         public IBucketConfigurationBuilder UseTokenBucket(string uriPattern, int requests, TimeSpan duration)
         {
             var builder = new TokenBucketConfigurationBuilder(

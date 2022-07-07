@@ -28,10 +28,11 @@ namespace HallPass
                 .AddHttpMessageHandler(serviceProvider => new HallPassMessageHandler(serviceProvider, options));
 
             // add a client for calling the HallPass API
-            services.AddHttpClient(Constants.HALLPASS_API_HTTPCLIENT_NAME, client =>
-            {
-                client.BaseAddress = new Uri("https://api.hallpass.dev/");
-            });
+            services
+                .AddHttpClient(Constants.HALLPASS_API_HTTPCLIENT_NAME, client => client.BaseAddress = new Uri("https://api.hallpass.dev/"))
+                
+                // use local buckets for HallPass API
+                .AddHttpMessageHandler(serviceProvider => new HallPassMessageHandler(serviceProvider, HallPassOptions.API));
 
             // register other dependencies
             services.AddSingleton<ITimeService>(_ => new TimeService(options.DurationBuffer));
