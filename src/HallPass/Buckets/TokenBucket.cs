@@ -10,7 +10,7 @@ namespace HallPass.Buckets
     {
         private readonly ConcurrentQueue<Ticket> _tickets = new ConcurrentQueue<Ticket>();
 
-        private static int _refilling = 0;
+        private int _refilling = 0;
 
         private DateTimeOffset _lastRefill = DateTimeOffset.MinValue;
 

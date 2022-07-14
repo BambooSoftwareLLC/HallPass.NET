@@ -136,12 +136,12 @@ await Task.WhenAll(tasks);
 
 ## COMING SOON
 
-- Throttle a Bunch of Calls Across Distributed Systems
-- More Bucket Types (_Leaky Bucket_, _Fixed Window_, _Sliding Log_, _Sliding Window_, _Query Cost_)
+- Throttle a Bunch of Calls Across Distributed Systems - (demo is available at [hallpass.dev](https://hallpass.dev))
+- More Bucket Types (_Fixed Window_, _Sliding Log_, _Sliding Window_, _Query Cost_)
 
-### COMING SOON: Throttle a Bunch of Calls Across Distributed Systems
+### DEMO: Throttle a Bunch of Calls Across Distributed Systems
 
-Soon, HallPass will be able to throttle calls across distributed systems. If you have multiple instances of an application running at once, but need to respect a single external API rate limit, or if you have multiple different applications running but still need to respect a single external API rate limit between all instances and applications, you'd be able to do so with minimal code changes.
+HallPass can now throttle calls across distributed systems IN NON-PRODUCTION ENVIRONMENTS. If you have multiple instances of an application running at once, but need to respect a single external API rate limit, or if you have multiple different applications running but still need to respect a single external API rate limit between all instances and applications, you're able to do so with minimal code changes.
 
 #### Configuration
 
@@ -169,7 +169,7 @@ await httpClient.GetAsync($"https://api.bar.com/statuses");
 
 #### Distributed Throttling Notes
 
-This will be a paid service, and the HallPass API itself will be rate-limited (with basic throttling and retries handled via the SDK code). We're still finalizing the pricing model, but hope to have a free tier available to demo soon!
+This will be a paid service, but right now demo clients are available with very limited lifetimes, and the HallPass API itself will be rate-limited (with basic throttling and retries handled via the SDK code). We're still finalizing the pricing model, but hope to have a free tier available to demo soon!
 
 HallPass will take care of registering individual instances, "fairly" dolling out permissions, and tracking the global rate limit for your account/app and its usage on our servers.
 
@@ -179,4 +179,4 @@ API calls to the HallPass service will be limited. Broadly, the SDK will request
 
 ### COMING SOON: More Bucket Types
 
-Please let us know which bucket types would be valuable to have. Most likely, we're going with _Leaky Bucket_ next. _Query Cost_ will likely either need significant configuration on the side of the user, or will need to be tailored to individual APIs.
+Please let us know which bucket types would be valuable to have. _Query Cost_ will likely either need significant configuration on the side of the user, or will need to be tailored to individual APIs.
