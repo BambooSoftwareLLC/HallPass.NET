@@ -71,6 +71,30 @@ builder.Services.AddHallPass(config =>
 });
 ```
 
+#### Using Multiple Bucket Types
+
+```
+using HallPass;
+
+...
+
+// Register HallPass and hook into IHttpClientFactory.CreateHallPassClient() extension method
+builder.Services.AddHallPass(config =>
+{
+    // use a TokenBucket for one endpoint...
+    config.UseTokenBucket(
+        uriPattern: "api.foo.com/users",
+        requestsPerPeriod: 100,
+        periodDuration: TimeSpan.FromMinutes(15));
+
+    // ...and a LeakyBucket for another
+    config.UseTokenBucket(
+        httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains("api.foo.com/posts"),
+        1000,
+        TimeSpan.FromMinutes(1));
+});
+```
+
 ### Usage - Throttle a single call
 
 It's highly recommended to use the built-in .NET `IHttpClientFactory` to obtain instances of `HttpClient` when using HallPass. Under the hood, HallPass adds an additional `DelegateHandler` to the named HallPass `HttpClient`, which handles the throttling action per configured endpoint.

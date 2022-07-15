@@ -50,13 +50,13 @@ namespace HallPass
         /// </summary>
         public bool UseDefaultHttpClient { get; set; } = false;
         
-        public IBucketConfigurationBuilder UseTokenBucket(string uriPattern, int requests, TimeSpan duration)
+        public IBucketConfigurationBuilder UseTokenBucket(string uriPattern, int requests, TimeSpan duration, StringComparison stringComparison = StringComparison.OrdinalIgnoreCase)
         {
             var builder = new TokenBucketConfigurationBuilder(
                 requests,
                 duration,
                 factory: services => new TokenBucket(requests, duration, services.GetService<ITimeService>()),
-                isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern));
+                isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern, stringComparison));
 
             _bucketConfigurationBuilders.Add(builder);
 
@@ -69,6 +69,34 @@ namespace HallPass
                 requests,
                 duration,
                 factory: services => new TokenBucket(requests, duration, services.GetService<ITimeService>()),
+                isTriggeredBy: isTriggeredBy);
+
+            _bucketConfigurationBuilders.Add(builder);
+
+            return builder;
+        }
+
+        public IBucketConfigurationBuilder UseLeakyBucket(string uriPattern, int requests, TimeSpan duration, int initialBurst = 0, StringComparison stringComparison = StringComparison.OrdinalIgnoreCase)
+        {
+            var builder = new LeakyBucketConfigurationBuilder(
+                requests,
+                duration,
+                initialBurst,
+                factory: services => new LeakyBucket(requests, duration, initialBurst),
+                isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern, stringComparison));
+
+            _bucketConfigurationBuilders.Add(builder);
+
+            return builder;
+        }
+
+        public IBucketConfigurationBuilder UseLeakyBucket(Func<HttpRequestMessage, bool> isTriggeredBy, int requests, TimeSpan duration, int initialBurst = 0)
+        {
+            var builder = new LeakyBucketConfigurationBuilder(
+                requests,
+                duration,
+                initialBurst,
+                factory: services => new LeakyBucket(requests, duration, initialBurst),
                 isTriggeredBy: isTriggeredBy);
 
             _bucketConfigurationBuilders.Add(builder);

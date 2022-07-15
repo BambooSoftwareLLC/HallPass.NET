@@ -14,7 +14,7 @@ namespace HallPass.UnitTests
     public class EndToEndTests
     {
         [Fact]
-        public async Task Can_make_a_single_request()
+        public async Task Can_make_a_single_request_with_TokenBucket()
         {
             var uri = TestEndpoints.GetRandom();
 
@@ -25,6 +25,34 @@ namespace HallPass.UnitTests
             {
                 // use HallPass locally
                 hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
+            });
+
+
+            // make a single API call to the throttled endpoint
+            var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateHallPassClient();
+            var response = await httpClient.GetAsync(uri);
+
+            // make sure nothing blows up
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"URI: {uri}");
+            }
+        }
+
+        [Fact]
+        public async Task Can_make_a_single_request_with_LeakyBucket()
+        {
+            var uri = TestEndpoints.GetRandom();
+
+            // configure dependency injection that uses HallPass configuration extensions
+            var services = new ServiceCollection();
+
+            services.AddHallPass(hallPass =>
+            {
+                // use HallPass locally
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5));
             });
 
 
