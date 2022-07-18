@@ -32,7 +32,14 @@ namespace HallPass.Api
             _clientSecret = clientSecret;
         }
 
-        public async Task<IReadOnlyList<Ticket>> GetTicketsAsync(string key, string instanceId, int requestsPerPeriod, TimeSpan periodDuration, CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<Ticket>> GetTicketsAsync(
+            string key,
+            string instanceId,
+            string bucketType,
+            int requestsPerPeriod,
+            TimeSpan periodDuration,
+            int initialBurst = 0,
+            CancellationToken cancellationToken = default)
         {
             // refresh (and cache) the access token for the given client_id
             var accessToken = await _cache.GetOrAddAsync($"access_token-{_clientId}", async entry =>
@@ -42,7 +49,18 @@ namespace HallPass.Api
                 return token;
             });
 
-            var request = new HttpRequestMessage(HttpMethod.Get, $"hallpasses?key={key}&instanceId={instanceId}&requestsPerPeriod={requestsPerPeriod}&periodDurationMilliseconds={periodDuration.TotalMilliseconds}");
+            var queryParams = new List<string>
+            {
+                $"key={key}",
+                $"instanceId={instanceId}",
+                $"bucketType={bucketType}",
+                $"requestsPerPeriod={requestsPerPeriod}",
+                $"periodDurationMilliseconds={periodDuration.TotalMilliseconds}",
+                $"initialBurst={initialBurst}",
+            };
+            var query = string.Join("&", queryParams);
+
+            var request = new HttpRequestMessage(HttpMethod.Get, $"v2/hallpasses?{query}");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
 
             var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
@@ -73,7 +91,7 @@ namespace HallPass.Api
 
         private async Task<AccessToken> AuthenticateAsync(CancellationToken cancellationToken)
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, $"oauth/token");
+            var request = new HttpRequestMessage(HttpMethod.Post, $"v2/oauth/token");
             var credentials = new { client_id = _clientId, client_secret = _clientSecret };
             request.Content = new StringContent(JsonSerializer.Serialize(credentials), Encoding.UTF8, "application/json");
 

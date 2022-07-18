@@ -8,30 +8,33 @@ using System.Threading.Tasks;
 
 namespace HallPass.Buckets
 {
-    internal sealed class RemoteTokenBucket : IBucket
+    internal class RemoteLeakyBucket : IBucket
     {
         private readonly ConcurrentSortedStack<Ticket> _tickets = new(Comparer<Ticket>.Create((a, b) => a.ValidFrom.CompareTo(b.ValidFrom)));
-        private readonly ITimeService _timeService;
+        
         private readonly IHallPassApi _hallPass;
 
         private readonly int _requestsPerPeriod;
         private readonly TimeSpan _periodDuration;
+        private readonly int _initialBurst;
         private readonly string _key;
         private readonly string _instanceId;
+        public string InstanceId => _instanceId;
 
         // keep track of tickets returned per remote call for fail-safe if HallPass Remote goes down temporarily
+        // todo: generalize this
         private int _remoteCalls = 0;
         private decimal _movingAverage = 0;
         private DateTimeOffset _lastValidFrom;
         private const int MAX_REMOTE_CALLS = 10;
         private readonly object _refreshingMovingAverage = new object();
 
-        public RemoteTokenBucket(ITimeService timeService, IHallPassApi hallPass, int requestsPerPeriod, TimeSpan periodDuration, string key = null, string instanceId = null)
+        public RemoteLeakyBucket(IHallPassApi hallPass, int requestsPerPeriod, TimeSpan periodDuration, int initialBurst, string key = null, string instanceId = null)
         {
-            _timeService = timeService;
             _hallPass = hallPass;
             _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = timeService.BufferDuration(periodDuration);
+            _periodDuration = periodDuration;
+            _initialBurst = initialBurst;
             _key = key ?? Guid.NewGuid().ToString();
             _instanceId = instanceId ?? Guid.NewGuid().ToString();
         }
@@ -49,31 +52,28 @@ namespace HallPass.Buckets
                 }
 
                 // if the ticket isn't yet valid, then wait for it to become valid
-                if (IsNotYetValid(ticket))
-                    await _timeService.DelayAsync(TimeUntilValid(ticket), cancellationToken);
+                if (ticket.IsNotYetValid())
+                    await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken);
 
                 // if the ticket has already expired, then we need to try to get another ticket
-                if (!IsExpired(ticket))
+                if (!ticket.IsExpired())
                     break;
             }
 
             return ticket;
         }
 
-        // This is the only method that changes from the in-memory version, from sync to async.
-        // Could we lump these all together and just provide custom implementations of RefillAsync?
-        // This could even serve as the basis of most bucket implementations, where the fancy logic is all in refill.
         private async Task RefillAsync(CancellationToken cancellationToken)
         {
             IReadOnlyList<Ticket> tickets;
             try
             {
-                tickets = await _hallPass.GetTicketsAsync(_key, _instanceId, "tokenbucket", _requestsPerPeriod, _periodDuration, cancellationToken: cancellationToken);
+                tickets = await _hallPass.GetTicketsAsync(_key, _instanceId, "leakybucket", _requestsPerPeriod, _periodDuration, _initialBurst, cancellationToken);
             }
             catch (Exception ex)
             {
                 // log?
-                tickets = GetFailSafeTickets();
+                tickets = GetFailSafeTickets().ToList();
             }
 
             _tickets.Add(tickets);
@@ -95,7 +95,7 @@ namespace HallPass.Buckets
             }
         }
 
-        private IReadOnlyList<Ticket> GetFailSafeTickets()
+        private IEnumerable<Ticket> GetFailSafeTickets()
         {
             // if average is < 1, return 1
             // otherwise generate new tickets with count equal to average
@@ -103,17 +103,15 @@ namespace HallPass.Buckets
                 ? 1
                 : (int)Math.Floor(_movingAverage);
 
-            var validFrom = _lastValidFrom + _periodDuration;
+            var now = DateTimeOffset.UtcNow;
+            var validFrom = _lastValidFrom > now ? _lastValidFrom : now;
+            var stagger = _periodDuration / _requestsPerPeriod;
 
-            return Enumerable
-                .Range(1, countToGenerate)
-                .Select(_ => Ticket.New(validFrom, validFrom + _periodDuration))
-                .ToList();
+            for (int i = 0; i < countToGenerate; i++)
+            {
+                validFrom += stagger;
+                yield return Ticket.New(validFrom, validFrom + _periodDuration);
+            }
         }
-
-        // these methods are identical to local version and could be shared in base class
-        private TimeSpan TimeUntilValid(Ticket ticket) => ticket.ValidFrom - _timeService.GetNow();
-        private bool IsNotYetValid(Ticket ticket) => TimeUntilValid(ticket) > TimeSpan.Zero;
-        private bool IsExpired(Ticket ticket) => ticket.ValidTo <= _timeService.GetNow();
     }
 }

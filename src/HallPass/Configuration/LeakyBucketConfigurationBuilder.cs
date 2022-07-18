@@ -1,4 +1,6 @@
-﻿using HallPass.Buckets;
+﻿using HallPass.Api;
+using HallPass.Buckets;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Net.Http;
 
@@ -24,24 +26,21 @@ namespace HallPass.Configuration
 
         public IBucketConfigurationBuilder ForMultipleInstances(string clientId, string clientSecret, string key = null, string instanceId = null)
         {
-            //_factory = services =>
-            //{
-            //    var apiFactory = services.GetService<HallPassApiFactory>();
-            //    var bucket = new RemoteLeakyBucket(
-            //        services.GetService<ITimeService>(),
-            //        apiFactory.GetOrCreate(clientId, clientSecret),
-            //        _requests,
-            //        _duration,
-            //        key,
-            //        instanceId);
+            _factory = services =>
+            {
+                var apiFactory = services.GetService<HallPassApiFactory>();
+                var bucket = new RemoteLeakyBucket(
+                    apiFactory.GetOrCreate(clientId, clientSecret),
+                    _requests,
+                    _duration,
+                    _initialBurst,
+                    key,
+                    instanceId);
 
-            //    return bucket;
-            //};
+                return bucket;
+            };
 
-            //return this;
-
-
-            throw new System.NotImplementedException();
+            return this;
         }
 
         BucketConfiguration IBucketConfigurationBuilder.Build(IServiceProvider services) => new BucketConfiguration(_factory(services), _isTriggeredBy);
