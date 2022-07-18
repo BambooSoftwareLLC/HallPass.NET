@@ -41,7 +41,7 @@ namespace HallPass.IntegrationTests
                     for (int i = 0; i < 5; i++)
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
-                        var response = await httpClient.GetAsync(uri);
+                        var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
 
                         // make sure nothing blows up
                         if (!response.IsSuccessStatusCode)
@@ -110,7 +110,7 @@ namespace HallPass.IntegrationTests
                     for (int i = 0; i < 5; i++)
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
-                        var response = await httpClient.GetAsync(uri);
+                        var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
 
                         // make sure nothing blows up
                         if (!response.IsSuccessStatusCode)
