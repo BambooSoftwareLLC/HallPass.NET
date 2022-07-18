@@ -8,7 +8,7 @@ namespace HallPass.IntegrationTests
 {
     public class EndToEndTests
     {
-        [Fact]
+        [Fact(Skip = "need to hit real endpoints with known rate limits and confirm no breaches")]
         public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled_with_TokenBucket()
         {
             var instances = Enumerable.Range(1, 10);
@@ -77,7 +77,7 @@ namespace HallPass.IntegrationTests
             localCounts.Average().ShouldBeGreaterThan(5);
         }
 
-        [Fact]
+        [Fact(Skip = "need to hit real endpoints with known rate limits and confirm no breaches")]
         public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled_with_LeakyBucket()
         {
             var instances = Enumerable.Range(1, 3);
@@ -143,7 +143,7 @@ namespace HallPass.IntegrationTests
             }
         }
 
-        [Fact]
+        [Fact(Skip = "flaky, need a better test for this")]
         public async Task Respects_HallPass_API_rate_limit_for_hallpasses_from_single_instance()
         {
             // setup
