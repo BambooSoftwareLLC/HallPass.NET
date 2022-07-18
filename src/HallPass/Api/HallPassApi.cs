@@ -60,14 +60,15 @@ namespace HallPass.Api
             };
             var query = string.Join("&", queryParams);
 
-            var request = new HttpRequestMessage(HttpMethod.Get, $"v2/hallpasses?{query}");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
 
             var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
 
             // retry 429's indefinitely
             while (true)
             {
+                var request = new HttpRequestMessage(HttpMethod.Get, $"v2/hallpasses?{query}");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
+
                 var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 {
