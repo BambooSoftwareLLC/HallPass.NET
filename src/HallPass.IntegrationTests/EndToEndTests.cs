@@ -80,7 +80,7 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled_with_LeakyBucket()
         {
-            var instances = Enumerable.Range(1, 10);
+            var instances = Enumerable.Range(1, 3);
             var uri = TestEndpoints.GetRandom();
             var sharedKey = uri;
 
@@ -99,7 +99,7 @@ namespace HallPass.IntegrationTests
                     {
                         // use HallPass remotely
                         hallPass
-                            .UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5))
+                            .UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(15))
                             .ForMultipleInstances(clientId, clientSecret, key: uri);
                     });
 
@@ -107,7 +107,7 @@ namespace HallPass.IntegrationTests
                     var serviceProvider = services.BuildServiceProvider(validateScopes: true);
                     var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
 
-                    for (int i = 0; i < 5; i++)
+                    for (int i = 0; i < 10; i++)
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
@@ -125,19 +125,15 @@ namespace HallPass.IntegrationTests
 
             await Task.WhenAll(tasks);
 
-            spy.Count.ShouldBe(50);
+            spy.Count.ShouldBe(30);
 
             // make sure calls are throttled as expected
             var spyQueue = new Queue<DateTimeOffset>(spy.OrderBy(s => s));
-            //var stagger = TimeSpan.FromSeconds(5) / 10;
-            //var buffer = TimeSpan.FromMilliseconds(100);
             var current = spyQueue.Dequeue();
             while (spyQueue.TryDequeue(out var next))
             {
-                //(next - current).ShouldBeGreaterThanOrEqualTo(stagger - buffer);
-
-                var earlyBound = next - TimeSpan.FromMilliseconds(2500);
-                var lateBound = next + TimeSpan.FromMilliseconds(2500);
+                var earlyBound = next - TimeSpan.FromSeconds(7.5);
+                var lateBound = next + TimeSpan.FromSeconds(7.5);
                 var localCount = spy.Count(x => x >= earlyBound && x < lateBound);
 
                 // MUST be bound by this
