@@ -15,7 +15,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_allow_15_requests_in_14_seconds_with_TokenBucket_allowing_5_request_every_5_seconds()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -26,7 +25,7 @@ namespace HallPass.IntegrationTests
                 .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
                 .Returns(httpClient);
 
-            var hallPass = new HallPassApi(cache, httpClientFactory, timeService, clientId, clientSecret);
+            var hallPass = new HallPassApi(cache, httpClientFactory, clientId, clientSecret);
             var bucket = new RemoteLeakyBucket(hallPass, 5, TimeSpan.FromSeconds(5), 0);
 
             var spy = new List<DateTimeOffset>();
@@ -51,7 +50,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_single_bucket()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -62,7 +60,7 @@ namespace HallPass.IntegrationTests
                 .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
                 .Returns(httpClient);
 
-            var hallPass = new HallPassApi(cache, httpClientFactory, timeService, clientId, clientSecret);
+            var hallPass = new HallPassApi(cache, httpClientFactory, clientId, clientSecret);
             var bucket = new RemoteLeakyBucket(hallPass, 5, TimeSpan.FromSeconds(2), 0);
 
             var spy = new ConcurrentBag<DateTimeOffset>();
@@ -94,7 +92,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_multiple_buckets_with_same_key_and_unique_instanceIds()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -111,7 +108,7 @@ namespace HallPass.IntegrationTests
             var buckets = Enumerable.Range(1, 5).Select(_ =>
             {
                 var localCache = new CachingService();
-                var localHallPass = new HallPassApi(localCache, httpClientFactory, timeService, clientId, clientSecret);
+                var localHallPass = new HallPassApi(localCache, httpClientFactory, clientId, clientSecret);
                 var bucket = new RemoteLeakyBucket(localHallPass, 5, TimeSpan.FromSeconds(2), 0, sharedKey);
                 //var bucket = new RemoteLeakyBucket(localHallPass, 5, TimeSpan.FromMinutes(1), 0, sharedKey);
                 return bucket;
@@ -145,7 +142,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_work_for_multiple_time_windows_for_multiple_threads()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -164,7 +160,7 @@ namespace HallPass.IntegrationTests
             var buckets = Enumerable.Range(1, 5).Select(_ =>
             {
                 var localCache = new CachingService();
-                var localHallPass = new HallPassApi(localCache, httpClientFactory, timeService, clientId, clientSecret);
+                var localHallPass = new HallPassApi(localCache, httpClientFactory, clientId, clientSecret);
                 var bucket = new RemoteLeakyBucket(localHallPass, 5, TimeSpan.FromSeconds(2), 0, sharedKey);
                 return bucket;
             });

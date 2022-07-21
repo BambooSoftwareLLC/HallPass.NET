@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Net.Http;
 using HallPass.Buckets;
 using HallPass.Configuration;
-using HallPass.Helpers;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace HallPass
 {
@@ -14,11 +12,7 @@ namespace HallPass
         {
             get
             {
-                var options = new HallPassOptions();
-
-                options.DurationBuffer = DurationBuffers.Moderate;
-
-                return options;
+                return new HallPassOptions();
             }
         }
 
@@ -39,8 +33,6 @@ namespace HallPass
         private readonly List<IBucketConfigurationBuilder> _bucketConfigurationBuilders = new();
         internal IEnumerable<IBucketConfigurationBuilder> BucketConfigurationBuilders => _bucketConfigurationBuilders;
 
-        public Func<TimeSpan, TimeSpan> DurationBuffer { get; set; }
-
         /// <summary>
         /// Set to TRUE (default is FALSE) to configure the default HttpClient, and use it like this:
         ///     var httpClient = httpClientFactory.CreateClient();
@@ -55,7 +47,7 @@ namespace HallPass
             var builder = new TokenBucketConfigurationBuilder(
                 requests,
                 duration,
-                factory: services => new TokenBucket(requests, duration, services.GetService<ITimeService>()),
+                factory: services => new TokenBucket(requests, duration),
                 isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern, stringComparison));
 
             _bucketConfigurationBuilders.Add(builder);
@@ -68,7 +60,7 @@ namespace HallPass
             var builder = new TokenBucketConfigurationBuilder(
                 requests,
                 duration,
-                factory: services => new TokenBucket(requests, duration, services.GetService<ITimeService>()),
+                factory: services => new TokenBucket(requests, duration),
                 isTriggeredBy: isTriggeredBy);
 
             _bucketConfigurationBuilders.Add(builder);

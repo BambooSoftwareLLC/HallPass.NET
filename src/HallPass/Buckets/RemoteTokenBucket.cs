@@ -11,7 +11,6 @@ namespace HallPass.Buckets
     internal sealed class RemoteTokenBucket : IBucket
     {
         private readonly ConcurrentSortedStack<Ticket> _tickets = new(Comparer<Ticket>.Create((a, b) => a.ValidFrom.CompareTo(b.ValidFrom)));
-        private readonly ITimeService _timeService;
         private readonly IHallPassApi _hallPass;
 
         private readonly int _requestsPerPeriod;
@@ -26,12 +25,11 @@ namespace HallPass.Buckets
         private const int MAX_REMOTE_CALLS = 10;
         private readonly object _refreshingMovingAverage = new object();
 
-        public RemoteTokenBucket(ITimeService timeService, IHallPassApi hallPass, int requestsPerPeriod, TimeSpan periodDuration, string key = null, string instanceId = null)
+        public RemoteTokenBucket(IHallPassApi hallPass, int requestsPerPeriod, TimeSpan periodDuration, string key = null, string instanceId = null)
         {
-            _timeService = timeService;
             _hallPass = hallPass;
             _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = timeService.BufferDuration(periodDuration);
+            _periodDuration = periodDuration;
             _key = key ?? Guid.NewGuid().ToString();
             _instanceId = instanceId ?? Guid.NewGuid().ToString();
         }
@@ -49,11 +47,11 @@ namespace HallPass.Buckets
                 }
 
                 // if the ticket isn't yet valid, then wait for it to become valid
-                if (IsNotYetValid(ticket))
-                    await _timeService.DelayAsync(TimeUntilValid(ticket), cancellationToken);
+                if (ticket.IsNotYetValid())
+                    await ticket.WaitUntilValidAsync(cancellationToken);
 
                 // if the ticket has already expired, then we need to try to get another ticket
-                if (!IsExpired(ticket))
+                if (!ticket.IsExpired())
                     break;
             }
 
@@ -110,10 +108,5 @@ namespace HallPass.Buckets
                 .Select(_ => Ticket.New(validFrom, validFrom + _periodDuration))
                 .ToList();
         }
-
-        // these methods are identical to local version and could be shared in base class
-        private TimeSpan TimeUntilValid(Ticket ticket) => ticket.ValidFrom - _timeService.GetNow();
-        private bool IsNotYetValid(Ticket ticket) => TimeUntilValid(ticket) > TimeSpan.Zero;
-        private bool IsExpired(Ticket ticket) => ticket.ValidTo <= _timeService.GetNow();
     }
 }

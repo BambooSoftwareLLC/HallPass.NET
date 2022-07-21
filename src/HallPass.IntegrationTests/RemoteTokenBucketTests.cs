@@ -14,7 +14,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_allow_15_requests_in_14_seconds_with_TokenBucket_allowing_5_request_every_5_seconds()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -25,13 +24,13 @@ namespace HallPass.IntegrationTests
                 .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
                 .Returns(httpClient);
 
-            var hallPass = new HallPassApi(cache, httpClientFactory, timeService, clientId, clientSecret);
-            var bucket = new RemoteTokenBucket(timeService, hallPass, 5, TimeSpan.FromSeconds(5));
+            var hallPass = new HallPassApi(cache, httpClientFactory, clientId, clientSecret);
+            var bucket = new RemoteTokenBucket(hallPass, 5, TimeSpan.FromSeconds(5));
 
             var spy = new List<DateTimeOffset>();
 
-            var fourteenSecondsLater = timeService.GetNow().AddSeconds(14);
-            while (timeService.GetNow() < fourteenSecondsLater)
+            var fourteenSecondsLater = DateTimeOffset.UtcNow.AddSeconds(14);
+            while (DateTimeOffset.UtcNow < fourteenSecondsLater)
             {
                 var ticket = await bucket.GetTicketAsync();
                 spy.Add(DateTimeOffset.Now);
@@ -47,7 +46,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_single_bucket()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -58,8 +56,8 @@ namespace HallPass.IntegrationTests
                 .CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME)
                 .Returns(httpClient);
 
-            var hallPass = new HallPassApi(cache, httpClientFactory, timeService, clientId, clientSecret);
-            var bucket = new RemoteTokenBucket(timeService, hallPass, 5, TimeSpan.FromSeconds(2));
+            var hallPass = new HallPassApi(cache, httpClientFactory, clientId, clientSecret);
+            var bucket = new RemoteTokenBucket(hallPass, 5, TimeSpan.FromSeconds(2));
 
             var spy = new ConcurrentBag<DateTimeOffset>();
 
@@ -85,7 +83,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_multiple_buckets_with_same_key_and_unique_instanceIds()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -102,8 +99,8 @@ namespace HallPass.IntegrationTests
             var buckets = Enumerable.Range(1, 5).Select(_ =>
             {
                 var localCache = new CachingService();
-                var localHallPass = new HallPassApi(localCache, httpClientFactory, timeService, clientId, clientSecret);
-                var bucket = new RemoteTokenBucket(timeService, localHallPass, 5, TimeSpan.FromSeconds(2), sharedKey);
+                var localHallPass = new HallPassApi(localCache, httpClientFactory, clientId, clientSecret);
+                var bucket = new RemoteTokenBucket(localHallPass, 5, TimeSpan.FromSeconds(2), sharedKey);
                 return bucket;
             });
 
@@ -135,7 +132,6 @@ namespace HallPass.IntegrationTests
         [Fact]
         public async Task GetTicketAsync___should_work_for_multiple_time_windows_for_multiple_threads()
         {
-            var timeService = new TimeService();
             var cache = new CachingService();
             var clientId = TestConfig.GetConfiguration().HallPassClientId();
             var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
@@ -153,8 +149,8 @@ namespace HallPass.IntegrationTests
             {
                 var localCache = new CachingService();
                 //var localHttp = new HttpClient() { BaseAddress = new Uri(TestConfig.GetConfiguration().HallPassBaseUrl()) };
-                var localHallPass = new HallPassApi(localCache, httpClientFactory, timeService, clientId, clientSecret);
-                var bucket = new RemoteTokenBucket(timeService, localHallPass, 5, TimeSpan.FromSeconds(2), sharedKey);
+                var localHallPass = new HallPassApi(localCache, httpClientFactory, clientId, clientSecret);
+                var bucket = new RemoteTokenBucket(localHallPass, 5, TimeSpan.FromSeconds(2), sharedKey);
                 return bucket;
             });
 

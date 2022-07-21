@@ -1,6 +1,5 @@
 ﻿using HallPass.Buckets;
 using HallPass.Configuration;
-using HallPass.Helpers;
 using LazyCache;
 using System;
 using System.Collections.Generic;
@@ -18,16 +17,14 @@ namespace HallPass.Api
     {
         private readonly IAppCache _cache;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly ITimeService _timeService;
 
         private readonly string _clientId;
         private readonly string _clientSecret;
 
-        public HallPassApi(IAppCache cache, IHttpClientFactory httpClientFactory, ITimeService timeService, string clientId, string clientSecret)
+        public HallPassApi(IAppCache cache, IHttpClientFactory httpClientFactory, string clientId, string clientSecret)
         {
             _cache = cache;
             _httpClientFactory = httpClientFactory;
-            _timeService = timeService;
             _clientId = clientId;
             _clientSecret = clientSecret;
         }
@@ -125,7 +122,7 @@ namespace HallPass.Api
                     tokenResponse.scope,
 
                     // removing a 5-second buffer from the expiration time to be safe
-                    _timeService.GetNow() + _timeService.GetDuration(TimeSpan.FromSeconds(tokenResponse.expires_in - 5)),
+                    DateTimeOffset.UtcNow + TimeSpan.FromSeconds(tokenResponse.expires_in - 5),
 
                     tokenResponse.token_type);
             }

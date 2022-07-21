@@ -1,6 +1,5 @@
 ﻿using HallPass.Api;
 using HallPass.Buckets;
-using HallPass.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Net.Http;
@@ -33,7 +32,6 @@ namespace HallPass.Configuration
             {
                 var apiFactory = services.GetService<HallPassApiFactory>();
                 var bucket = new RemoteTokenBucket(
-                    services.GetService<ITimeService>(),
                     apiFactory.GetOrCreate(clientId, clientSecret),
                     _requests,
                     _duration,

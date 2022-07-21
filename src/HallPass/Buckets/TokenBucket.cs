@@ -1,5 +1,4 @@
-﻿using HallPass.Helpers;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,13 +15,11 @@ namespace HallPass.Buckets
 
         private readonly int _requestsPerPeriod;
         private readonly TimeSpan _periodDuration;
-        private readonly ITimeService _timeService;
 
-        public TokenBucket(int requestsPerPeriod, TimeSpan periodDuration, ITimeService timeService)
+        public TokenBucket(int requestsPerPeriod, TimeSpan periodDuration)
         {
             _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = timeService.BufferDuration(periodDuration);
-            _timeService = timeService;
+            _periodDuration = periodDuration;
         }
 
         public async Task<Ticket> GetTicketAsync(CancellationToken cancellationToken = default)
@@ -33,15 +30,11 @@ namespace HallPass.Buckets
                 Refill();
             }
 
-            if (IsNotYetValid(ticket))
-                await _timeService.DelayAsync(TimeUntilValid(ticket), cancellationToken);
+            if (ticket.IsNotYetValid())
+                await ticket.WaitUntilValidAsync(cancellationToken);
 
             return ticket;
         }
-
-        private TimeSpan TimeUntilValid(Ticket ticket) => ticket.ValidFrom - _timeService.GetNow();
-
-        private bool IsNotYetValid(Ticket ticket) => TimeUntilValid(ticket) > TimeSpan.Zero;
 
         private void Refill()
         {
@@ -50,11 +43,11 @@ namespace HallPass.Buckets
                 return;
 
             // if wait time is negative, then just use zero
-            var waitTime = _lastRefill + _periodDuration - _timeService.GetNow();
+            var waitTime = _lastRefill + _periodDuration - DateTimeOffset.UtcNow;
             waitTime = waitTime.TotalMilliseconds < 0 ? TimeSpan.Zero : waitTime;
 
             // refill the tickets bucket
-            var validFrom = waitTime > TimeSpan.Zero ? _timeService.GetNow() + waitTime : _timeService.GetNow();
+            var validFrom = waitTime > TimeSpan.Zero ? DateTimeOffset.UtcNow + waitTime : DateTimeOffset.UtcNow;
             var validTo = validFrom + _periodDuration;
             for (int i = 0; i < _requestsPerPeriod; i++)
             {

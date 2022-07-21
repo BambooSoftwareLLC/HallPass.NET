@@ -1,6 +1,5 @@
 ﻿using HallPass.Api;
 using HallPass.Configuration;
-using HallPass.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
@@ -35,7 +34,6 @@ namespace HallPass
                 .AddHttpMessageHandler(serviceProvider => new HallPassMessageHandler(serviceProvider, HallPassOptions.API));
 
             // register other dependencies
-            services.AddSingleton<ITimeService>(_ => new TimeService(options.DurationBuffer));
             services.AddTransient<HallPassApiFactory>();
             services.AddLazyCache();
 
