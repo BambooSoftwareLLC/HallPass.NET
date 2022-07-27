@@ -24,16 +24,22 @@ namespace HallPass.Buckets
 
         public async Task<Ticket> GetTicketAsync(CancellationToken cancellationToken = default)
         {
-            Ticket ticket;
-            while (!_tickets.TryDequeue(out ticket))
+            while (true)
             {
-                Refill();
+                Ticket ticket;
+                while (!_tickets.TryDequeue(out ticket))
+                {
+                    Refill();
+                }
+
+                if (ticket.IsNotYetValid())
+                    await ticket.WaitUntilValidAsync(cancellationToken);
+
+                if (ticket.IsExpired())
+                    continue;
+
+                return ticket;
             }
-
-            if (ticket.IsNotYetValid())
-                await ticket.WaitUntilValidAsync(cancellationToken);
-
-            return ticket;
         }
 
         private void Refill()
