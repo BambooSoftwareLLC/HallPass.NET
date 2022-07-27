@@ -108,5 +108,11 @@ namespace HallPass.Buckets
                 .Select(_ => Ticket.New(validFrom, validFrom + _periodDuration))
                 .ToList();
         }
+
+        public Task ShiftWindowAsync(TimeSpan shift, string windowId, CancellationToken cancellationToken = default)
+        {
+            // todo
+            return Task.CompletedTask;
+        }
     }
 }

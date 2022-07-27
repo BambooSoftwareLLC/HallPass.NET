@@ -66,5 +66,11 @@ namespace HallPass.Buckets
             // release the lock
             Interlocked.Exchange(ref _refilling, 0);
         }
+
+        public Task ShiftWindowAsync(TimeSpan shift, string windowId, CancellationToken cancellationToken = default)
+        {
+            // todo
+            return Task.CompletedTask;
+        }
     }
 }

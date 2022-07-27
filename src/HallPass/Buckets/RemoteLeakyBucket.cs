@@ -113,5 +113,11 @@ namespace HallPass.Buckets
                 yield return Ticket.New(validFrom, validFrom + _periodDuration);
             }
         }
+
+        public Task ShiftWindowAsync(TimeSpan shift, string windowId, CancellationToken cancellationToken = default)
+        {
+            // todo
+            return Task.CompletedTask;
+        }
     }
 }
