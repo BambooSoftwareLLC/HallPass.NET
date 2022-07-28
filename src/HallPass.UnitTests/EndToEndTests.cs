@@ -52,7 +52,7 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5));
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
             });
 
 
@@ -90,8 +90,7 @@ namespace HallPass.UnitTests
 
             var spy = new List<DateTimeOffset>();
 
-            var fourteenSecondsLater = DateTimeOffset.Now.AddSeconds(14);
-            while (DateTimeOffset.Now < fourteenSecondsLater)
+            for (int i = 0; i < 35; i++)
             {
                 var response = await httpClient.GetAsync(uri);
 
@@ -109,7 +108,8 @@ namespace HallPass.UnitTests
             var requestsInTime = spy.Where(s => s <= server14SecondsLater).ToList();
 
             // 0: 10, 5: 20, 10: 30
-            requestsInTime.Count.ShouldBe(30);
+            requestsInTime.Count.ShouldBeLessThanOrEqualTo(30);
+            requestsInTime.Count.ShouldBeGreaterThan(25);
         }
 
         [Fact]

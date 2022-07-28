@@ -11,28 +11,21 @@ namespace HallPass.Buckets
 
         private TimeSpan _shift = TimeSpan.Zero;
         
-        private readonly int _requestsPerPeriod;
-        private readonly TimeSpan _periodDuration;
+        private readonly int _leakAmount;
+        private readonly TimeSpan _leakPeriod;
+        private readonly int _capacity;
 
         private DateTimeOffset _lastRefill = DateTimeOffset.UtcNow;
         private int _refilling = 0;
 
-        private const int MINIMUM_REFILL_QUANTITY = 10;
-
-        public LeakyBucket(int requestsPerPeriod, TimeSpan periodDuration, int initialBurst = 0)
+        public LeakyBucket(int leakAmount, TimeSpan leakPeriod, int capacity)
         {
-            _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = periodDuration;
+            _leakAmount = leakAmount;
+            _leakPeriod = leakPeriod;
+            _capacity = capacity;
 
             // fill initial burst
-            var validFrom = DateTimeOffset.UtcNow;
-            for (int i = 0; i < initialBurst; i++)
-            {
-                _tickets.Enqueue(Ticket.New(validFrom, validFrom + _periodDuration, windowId: "TODO"));
-            }
-
-            // update the time of last refill
-            _lastRefill = validFrom;
+            Refill(validFrom: DateTimeOffset.UtcNow, burst: true);
         }
 
         public async Task<Ticket> GetTicketAsync(CancellationToken cancellationToken = default)
@@ -42,7 +35,7 @@ namespace HallPass.Buckets
                 Ticket ticket;
                 while (!_tickets.TryDequeue(out ticket))
                 {
-                    Refill();
+                    Refill(_lastRefill);
                 }
 
                 if (ticket.IsNotYetValid())
@@ -59,23 +52,29 @@ namespace HallPass.Buckets
             }
         }
 
-        private void Refill()
+        private void Refill(DateTimeOffset validFrom, bool burst = false)
         {
             // if somebody else is already refilling, then exit early
             if (0 != Interlocked.Exchange(ref _refilling, 1))
                 return;
 
-            DateTimeOffset validFrom = _lastRefill;
-            var perTicketStagger = _periodDuration / _requestsPerPeriod;
-
-            var refillQuantity = Math.Max(MINIMUM_REFILL_QUANTITY, _requestsPerPeriod);
-            for (int i = 0; i < refillQuantity; i++)
+            // refill up to full capacity, staggered by the leakPeriod
+            var leakScale = _capacity / _leakAmount;
+            while (_tickets.Count < _capacity)
             {
-                validFrom += perTicketStagger;
-                _tickets.Enqueue(Ticket.New(validFrom, validFrom + _periodDuration, windowId: "TODO"));
+                for (int i = 0; i < _leakAmount; i++)
+                {
+                    _tickets.Enqueue(Ticket.New(validFrom, validFrom + _leakPeriod * leakScale, windowId: "TODO"));
+                }
+
+                if (!burst)
+                    validFrom += _leakPeriod;
             }
 
             // update the time of last refill
+            if (burst)
+                validFrom += _leakPeriod;
+
             _lastRefill = validFrom;
 
             // release the lock

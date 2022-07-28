@@ -80,7 +80,7 @@ namespace HallPass.IntegrationTests
                     {
                         // use HallPass remotely
                         hallPass
-                            .UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(15))
+                            .UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(15), 10)
                             .ForMultipleInstances(clientId, clientSecret, key: uri);
                     });
 
