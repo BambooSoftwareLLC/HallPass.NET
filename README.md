@@ -31,16 +31,18 @@ using HallPass;
 builder.Services.AddHallPass(config =>
 {
     // throttle all requests matching a uri pattern
-    config.UseTokenBucket(
+    config.UseLeakyBucket(
         uriPattern: "api.foo.com/users",
-        requestsPerPeriod: 100,
-        periodDuration: TimeSpan.FromMinutes(15));
+        rate: 100,
+        frequency: TimeSpan.FromMinutes(15),
+        capacity: 100);
 
     // can also use a Func<HttpRequestMessage, bool> to resolve whether to throttle or not
-    config.UseTokenBucket(
+    config.UseLeakyBucket(
         httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains("api.foo.com/posts"),
         1000,
-        TimeSpan.FromMinutes(1));
+        TimeSpan.FromMinutes(1),
+        1000);
 });
 ```
 
@@ -58,40 +60,18 @@ builder.Services.AddHallPass(config =>
     config.UseDefaultHttpClient = true;
 
     // throttle all requests matching a uri pattern
-    config.UseTokenBucket(
+    config.UseLeakyBucket(
         uriPattern: "api.foo.com/users",
-        requestsPerPeriod: 100,
-        periodDuration: TimeSpan.FromMinutes(15));
+        rate: 100,
+        frequency: TimeSpan.FromMinutes(15),
+        capacity: 100);
 
     // can also use a Func<HttpRequestMessage, bool> to resolve whether to throttle or not
-    config.UseTokenBucket(
+    config.UseLeakyBucket(
         httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains("api.foo.com/posts"),
         1000,
-        TimeSpan.FromMinutes(1));
-});
-```
-
-#### Using Multiple Bucket Types
-
-```
-using HallPass;
-
-...
-
-// Register HallPass and hook into IHttpClientFactory.CreateHallPassClient() extension method
-builder.Services.AddHallPass(config =>
-{
-    // use a TokenBucket for one endpoint...
-    config.UseTokenBucket(
-        uriPattern: "api.foo.com/users",
-        requestsPerPeriod: 100,
-        periodDuration: TimeSpan.FromMinutes(15));
-
-    // ...and a LeakyBucket for another
-    config.UseTokenBucket(
-        httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains("api.foo.com/posts"),
-        1000,
-        TimeSpan.FromMinutes(1));
+        TimeSpan.FromMinutes(1),
+        1000);
 });
 ```
 
@@ -119,7 +99,7 @@ class MyService
         HttpClient httpClient = _httpClientFactory.CreateHallPassClient();
 
         ...
-        // block to keep rate within 100 / 15 minutes WITHIN THIS SINGLE APP INSTANCE
+        // block to keep rate within 100 / 15 minutes
         await httpClient.GetAsync($"https://api.foo.com/users/{userId}", token);
     }
 }
@@ -133,7 +113,7 @@ HallPass works for synchronous loops (within async methods) by simply awaiting u
 var userIds = Enumerable.Range(1, 500);
 foreach (var userId in userIds)
 {
-    // block to keep rate within 100 / 15 minutes WITHIN THIS SINGLE APP INSTANCE
+    // block to keep rate within 100 / 15 minutes
     await httpClient.GetAsync($"https://api.foo.com/users/{userId}", token);
 }
 ```
@@ -150,7 +130,7 @@ var tasks = Enumerable
         // usually it's better to get a client per Task, allowing IHttpClientFactory to manage the concurrency complexity
         var httpClient = _httpClientFactory.CreateHallPassClient();
 
-        // block to keep rate within 100 / 15 minutes WITHIN THIS SINGLE APP INSTANCE
+        // block to keep rate within 100 / 15 minutes
         await httpClient.GetAsync($"https://api.foo.com/users/{userId}", token);
     }))
     .ToList();
@@ -161,7 +141,7 @@ await Task.WhenAll(tasks);
 ## COMING SOON
 
 - Throttle a Bunch of Calls Across Distributed Systems - (demo is available at [hallpass.dev](https://hallpass.dev))
-- More Bucket Types (_Fixed Window_, _Sliding Log_, _Sliding Window_, _Query Cost_)
+- More Bucket Types (_Fixed Window_, _Sliding Log_, _Sliding Window_, _Query Cost_, _Concurrency Limit_)
 
 ### DEMO: Throttle a Bunch of Calls Across Distributed Systems
 
@@ -174,7 +154,7 @@ builder.Services.AddHallPass(config =>
 {
     // remote buckets, for coordinating clusters of services
     config
-        .UseTokenBucket("api.bar.com/statuses", 50, TimeSpan.FromMinutes(1))
+        .UseLeakyBucket("api.bar.com/statuses", 50, TimeSpan.FromMinutes(1), 50)
 
         // client id and secret provided when registering an app in your HallPass dashboard
         // 'key' is essential, acting as the shared token used to group/coordinate multiple instances
