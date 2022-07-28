@@ -9,55 +9,6 @@ namespace HallPass.IntegrationTests
 {
     public class EndToEndTests
     {
-        [Fact]
-        public async Task Can_make_concurrent_requests_from_a_single_instance_that_are_properly_throttled_with_TokenBucket()
-        {
-            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/token-bucket/20-per-60-seconds/{Guid.NewGuid().ToString()[..6]}";
-            var sharedKey = uri;
-
-            var spy = new ConcurrentBag<HttpResponseMessage>();
-
-            var clientId = TestConfig.HallPassClientId();
-            var clientSecret = TestConfig.HallPassClientSecret();
-
-            var apiKey = TestConfig.HallPassTestApiKey();
-
-            // configure dependency injection that uses HallPass configuration extensions
-            var services = new ServiceCollection();
-
-            services.AddHallPass(hallPass =>
-            {
-                // use HallPass locally
-                hallPass.UseTokenBucket(uri, 20, TimeSpan.FromSeconds(60));
-            });
-
-            // make a loop of API calls to the throttled endpoint
-            var serviceProvider = services.BuildServiceProvider(validateScopes: true);
-            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
-
-            for (int i = 0; i < 5; i++)
-            {
-                var tasks = Enumerable.Range(1, 10)
-                    .Select(async _ =>
-                    {
-                        var httpClient = httpClientFactory.CreateHallPassClient();
-                        httpClient.DefaultRequestHeaders.Add("hallpass-api-key", apiKey);
-
-                        var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
-                        spy.Add(response);
-
-                        // fail early
-                        response.StatusCode.ShouldBe(HttpStatusCode.OK, $"request: {spy.Count}");
-                    })
-                    .ToList();
-
-                await Task.WhenAll(tasks);
-            }
-
-            spy.Count.ShouldBe(50);
-            spy.ShouldNotContain(msg => msg.StatusCode == HttpStatusCode.TooManyRequests);
-        }
-
         [Fact(Skip = "need to hit real endpoints with known rate limits and confirm no breaches")]
         public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled_with_LeakyBucket()
         {
@@ -141,7 +92,7 @@ namespace HallPass.IntegrationTests
             {
                 // use HallPass remotely
                 hallPass
-                    .UseTokenBucket(uri, 1, TimeSpan.FromSeconds(5))
+                    .UseLeakyBucket(uri, 1, TimeSpan.FromSeconds(5), 1)
                     .ForMultipleInstances(clientId, clientSecret, key: uri);
             });
 
@@ -158,7 +109,7 @@ namespace HallPass.IntegrationTests
                 {
                     for (int i = 0; i < 10; i++)
                     {
-                        await api.GetTicketsAsync(sharedKey, sharedKey, "tokenbucket", 1, TimeSpan.FromSeconds(5));
+                        await api.GetTicketsAsync(sharedKey, sharedKey, 1, TimeSpan.FromSeconds(5), 1);
                     }
                 })
                 .ToList();
@@ -175,7 +126,7 @@ namespace HallPass.IntegrationTests
                 {
                     for (int i = 0; i < 10; i++)
                     {
-                        await api.GetTicketsAsync(sharedKey, sharedKey, "tokenbucket", 1, TimeSpan.FromSeconds(5));
+                        await api.GetTicketsAsync(sharedKey, sharedKey, 1, TimeSpan.FromSeconds(5), 1);
                     }
                 })
                 .ToList();

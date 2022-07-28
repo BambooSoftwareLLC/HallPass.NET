@@ -9,22 +9,25 @@ namespace HallPass.Buckets
     {
         private readonly ConcurrentQueue<Ticket> _tickets = new ConcurrentQueue<Ticket>();
 
+        private readonly ConcurrentDictionary<string, string> _shiftedWindowIds = new();
+        private readonly ConcurrentQueue<(string WindowId, DateTimeOffset ExpireAt)> _shiftExpirations = new();
+        private int _shifting = 0;
         private TimeSpan _shift = TimeSpan.Zero;
-        
-        private readonly int _leakAmount;
-        private readonly TimeSpan _leakPeriod;
+
+        private readonly int _rate;
+        private readonly TimeSpan _frequency;
         private readonly int _capacity;
 
         private DateTimeOffset _lastRefill = DateTimeOffset.UtcNow;
         private int _refilling = 0;
 
-        public LeakyBucket(int leakAmount, TimeSpan leakPeriod, int capacity)
+        public LeakyBucket(int rate, TimeSpan frequency, int capacity)
         {
-            _leakAmount = leakAmount;
-            _leakPeriod = leakPeriod;
+            _rate = rate;
+            _frequency = frequency;
             _capacity = capacity;
 
-            // fill initial burst
+            // fill initial capacity
             Refill(validFrom: DateTimeOffset.UtcNow, burst: true);
         }
 
@@ -59,31 +62,68 @@ namespace HallPass.Buckets
                 return;
 
             // refill up to full capacity, staggered by the leakPeriod
-            var leakScale = _capacity / _leakAmount;
+            var windowSize = _frequency * (_capacity / _rate);
             while (_tickets.Count < _capacity)
             {
-                for (int i = 0; i < _leakAmount; i++)
+                var windowId = Guid.NewGuid().ToString()[..6];
+                for (int i = 0; i < _rate; i++)
                 {
-                    _tickets.Enqueue(Ticket.New(validFrom, validFrom + _leakPeriod * leakScale, windowId: "TODO"));
+                    _tickets.Enqueue(Ticket.New(validFrom, validFrom + windowSize, windowId));
                 }
 
                 if (!burst)
-                    validFrom += _leakPeriod;
+                    validFrom += _frequency;
             }
 
             // update the time of last refill
             if (burst)
-                validFrom += _leakPeriod;
+                validFrom += _frequency;
 
             _lastRefill = validFrom;
 
             // release the lock
             Interlocked.Exchange(ref _refilling, 0);
+
+            // try to clean up shifts (don't need the lock here)
+            while (_shiftExpirations.TryPeek(out var pair) && pair.ExpireAt <= DateTimeOffset.UtcNow)
+            {
+                _shiftExpirations.TryDequeue(out pair);
+
+                if (pair.ExpireAt <= DateTimeOffset.UtcNow)
+                {
+                    _shiftedWindowIds.TryRemove(pair.WindowId, out _);
+                }
+                else
+                {
+                    _shiftExpirations.Enqueue(pair);
+                }
+            }
         }
 
         public Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default)
         {
-            // todo
+            // if we can add it, that means it hasn't been processed yet
+            if (_shiftedWindowIds.TryAdd(ticket.WindowId, null))
+            {
+                // update global shift atomically
+                while (true)
+                {
+                    // try to take the lock
+                    if (0 != Interlocked.Exchange(ref _shifting, 1))
+                        continue;
+
+                    var shift = DateTimeOffset.UtcNow - (ticket.ValidFrom + _shift);
+                    _shift += shift;
+
+                    // release lock
+                    Interlocked.Exchange(ref _shifting, 0);
+                    break;
+                }
+
+                // set this shift to expire to avoid infinite memory needs
+                _shiftExpirations.Enqueue((ticket.WindowId, DateTimeOffset.UtcNow.AddMinutes(5)));
+            }
+
             return Task.CompletedTask;
         }
     }

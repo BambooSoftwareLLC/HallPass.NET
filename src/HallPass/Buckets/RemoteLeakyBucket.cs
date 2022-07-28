@@ -16,9 +16,9 @@ namespace HallPass.Buckets
         
         private readonly IHallPassApi _hallPass;
 
-        private readonly int _requestsPerPeriod;
-        private readonly TimeSpan _periodDuration;
-        private readonly int _initialBurst;
+        private readonly int _rate;
+        private readonly TimeSpan _frequency;
+        private readonly int _capacity;
         private readonly string _key;
         private readonly string _instanceId;
         public string InstanceId => _instanceId;
@@ -31,12 +31,12 @@ namespace HallPass.Buckets
         private const int MAX_REMOTE_CALLS = 10;
         private readonly object _refreshingMovingAverage = new object();
 
-        public RemoteLeakyBucket(IHallPassApi hallPass, int requestsPerPeriod, TimeSpan periodDuration, int initialBurst, string key = null, string instanceId = null)
+        public RemoteLeakyBucket(IHallPassApi hallPass, int rate, TimeSpan frequency, int capacity, string key = null, string instanceId = null)
         {
             _hallPass = hallPass;
-            _requestsPerPeriod = requestsPerPeriod;
-            _periodDuration = periodDuration;
-            _initialBurst = initialBurst;
+            _rate = rate;
+            _frequency = frequency;
+            _capacity = capacity;
             _key = key ?? Guid.NewGuid().ToString();
             _instanceId = instanceId ?? Guid.NewGuid().ToString();
         }
@@ -74,7 +74,7 @@ namespace HallPass.Buckets
             IReadOnlyList<Ticket> tickets;
             try
             {
-                tickets = await _hallPass.GetTicketsAsync(_key, _instanceId, "leakybucket", _requestsPerPeriod, _periodDuration, _initialBurst, cancellationToken);
+                tickets = await _hallPass.GetTicketsAsync(_key, _instanceId, _rate, _frequency, _capacity, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -107,16 +107,24 @@ namespace HallPass.Buckets
             // otherwise generate new tickets with count equal to average
             var countToGenerate = _movingAverage < 1
                 ? 1
-                : (int)Math.Floor(_movingAverage);
+                : (int)Math.Floor(Math.Max(_movingAverage, 1));
 
             var now = DateTimeOffset.UtcNow;
-            var validFrom = _lastValidFrom > now ? _lastValidFrom : now;
-            var stagger = _periodDuration / _requestsPerPeriod;
+            var validFrom = _lastValidFrom + _frequency > now ? _lastValidFrom + _frequency : now;
 
-            for (int i = 0; i < countToGenerate; i++)
+            var windowSize = _frequency * (_capacity / _rate);
+
+            var generatedCount = 0;
+            while (generatedCount < countToGenerate)
             {
-                validFrom += stagger;
-                yield return Ticket.New(validFrom, validFrom + _periodDuration, windowId: "TODO");
+                var windowId = Guid.NewGuid().ToString()[..6];
+                for (int i = 0; i < _rate; i++)
+                {
+                    yield return Ticket.New(validFrom, validFrom + windowSize, windowId);
+                }
+
+                validFrom += _frequency;
+                _lastValidFrom = validFrom;
             }
         }
 

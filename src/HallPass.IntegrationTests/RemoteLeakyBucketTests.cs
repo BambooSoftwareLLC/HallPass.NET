@@ -24,7 +24,7 @@ namespace HallPass.IntegrationTests
                 .Returns(httpClient);
 
             var hallPass = new HallPassApi(cache, httpClientFactory, clientId, clientSecret);
-            var bucket = new RemoteLeakyBucket(hallPass, 5, TimeSpan.FromSeconds(5), 0);
+            var bucket = new RemoteLeakyBucket(hallPass, 5, TimeSpan.FromSeconds(5), 5);
 
             var spy = new List<DateTimeOffset>();
 
@@ -34,15 +34,9 @@ namespace HallPass.IntegrationTests
                 spy.Add(DateTimeOffset.Now);
             }
 
-            var orderedSpy = new Queue<DateTimeOffset>(spy.OrderBy(s => s));
-            var stagger = TimeSpan.FromSeconds(5) / 5;
-            var buffer = TimeSpan.FromMilliseconds(50);
-            var current = orderedSpy.Dequeue();
-            while (orderedSpy.TryDequeue(out var next))
-            {
-                (next - current).ShouldBeGreaterThanOrEqualTo(stagger - buffer);
-                current = next;
-            }
+            var fourteenSecondsLater = spy.Min().AddSeconds(14);
+            var inTimeTickets = spy.Where(x => x <= fourteenSecondsLater);
+            inTimeTickets.Count().ShouldBe(15);
         }
 
         [Fact]
@@ -59,7 +53,7 @@ namespace HallPass.IntegrationTests
                 .Returns(httpClient);
 
             var hallPass = new HallPassApi(cache, httpClientFactory, clientId, clientSecret);
-            var bucket = new RemoteLeakyBucket(hallPass, 5, TimeSpan.FromSeconds(2), 0);
+            var bucket = new RemoteLeakyBucket(hallPass, 1, TimeSpan.FromMilliseconds(400), 1);
 
             var spy = new ConcurrentBag<DateTimeOffset>();
 
@@ -159,7 +153,7 @@ namespace HallPass.IntegrationTests
             {
                 var localCache = new CachingService();
                 var localHallPass = new HallPassApi(localCache, httpClientFactory, clientId, clientSecret);
-                var bucket = new RemoteLeakyBucket(localHallPass, 5, TimeSpan.FromSeconds(2), 0, sharedKey);
+                var bucket = new RemoteLeakyBucket(localHallPass, 1, TimeSpan.FromMilliseconds(400), 1, sharedKey);
                 return bucket;
             });
 

@@ -14,34 +14,6 @@ namespace HallPass.UnitTests
     public class EndToEndTests
     {
         [Fact]
-        public async Task Can_make_a_single_request_with_TokenBucket()
-        {
-            var uri = TestEndpoints.GetRandom();
-
-            // configure dependency injection that uses HallPass configuration extensions
-            var services = new ServiceCollection();
-
-            services.AddHallPass(hallPass =>
-            {
-                // use HallPass locally
-                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
-            });
-
-
-            // make a single API call to the throttled endpoint
-            var serviceProvider = services.BuildServiceProvider(validateScopes: true);
-            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateHallPassClient();
-            var response = await httpClient.GetAsync(uri);
-
-            // make sure nothing blows up
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new HttpRequestException($"URI: {uri}");
-            }
-        }
-
-        [Fact]
         public async Task Can_make_a_single_request_with_LeakyBucket()
         {
             var uri = TestEndpoints.GetRandom();
@@ -80,7 +52,7 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
             });
 
             // make a loop of API calls to the throttled endpoint
@@ -123,7 +95,7 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
             });
 
             // make a concurrent bunch of API calls to the throttled endpoint
@@ -183,12 +155,12 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseTokenBucket(request => request.RequestUri.ToString().Equals("https://catfact.ninja/fact"), 10, TimeSpan.FromSeconds(3));
-                hallPass.UseTokenBucket("https://catfact.ninja/facts", 10, TimeSpan.FromSeconds(3));
-                hallPass.UseTokenBucket("https://catfact.ninja/breeds", 10, TimeSpan.FromSeconds(3));
+                hallPass.UseLeakyBucket(request => request.RequestUri.ToString().Equals("https://catfact.ninja/fact"), 10, TimeSpan.FromSeconds(3), 10);
+                hallPass.UseLeakyBucket("https://catfact.ninja/facts", 10, TimeSpan.FromSeconds(3), 10);
+                hallPass.UseLeakyBucket("https://catfact.ninja/breeds", 10, TimeSpan.FromSeconds(3), 10);
                 
                 // global limit for the catfact.ninja API
-                hallPass.UseTokenBucket("https://catfact.ninja", 20, TimeSpan.FromSeconds(3));
+                hallPass.UseLeakyBucket("https://catfact.ninja", 20, TimeSpan.FromSeconds(3), 20);
             });
 
             // make a concurrent bunch of API calls to the throttled endpoint
@@ -283,7 +255,7 @@ namespace HallPass.UnitTests
                 hallPass.UseDefaultHttpClient = true;
 
                 // use HallPass locally
-                hallPass.UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5));
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
             });
 
             // make a loop of API calls to the throttled endpoint

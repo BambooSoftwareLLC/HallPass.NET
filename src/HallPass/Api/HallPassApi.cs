@@ -32,10 +32,9 @@ namespace HallPass.Api
         public async Task<IReadOnlyList<Ticket>> GetTicketsAsync(
             string key,
             string instanceId,
-            string bucketType,
-            int requestsPerPeriod,
-            TimeSpan periodDuration,
-            int initialBurst = 0,
+            int rate,
+            TimeSpan frequency,
+            int capacity,
             CancellationToken cancellationToken = default)
         {
             // refresh (and cache) the access token for the given client_id
@@ -50,10 +49,9 @@ namespace HallPass.Api
             {
                 $"key={key}",
                 $"instanceId={instanceId}",
-                $"bucketType={bucketType}",
-                $"requestsPerPeriod={requestsPerPeriod}",
-                $"periodDurationMilliseconds={periodDuration.TotalMilliseconds}",
-                $"initialBurst={initialBurst}",
+                $"rate={rate}",
+                $"frequency={frequency.TotalMilliseconds}",
+                $"capacity={capacity}",
             };
             var query = string.Join("&", queryParams);
 
@@ -63,7 +61,7 @@ namespace HallPass.Api
             // retry 429's indefinitely
             while (true)
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"v2/hallpasses?{query}");
+                var request = new HttpRequestMessage(HttpMethod.Get, $"v4/hallpasses?{query}");
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
 
                 var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);

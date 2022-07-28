@@ -14,7 +14,7 @@ namespace HallPass.UnitTests
         [Fact]
         public async Task GetTicketAsync___should_allow_for_bursts_when_configured()
         {
-            var bucket = new LeakyBucket(leakAmount: 1, leakPeriod: TimeSpan.FromMilliseconds(500), capacity: 5);
+            var bucket = new LeakyBucket(rate: 1, frequency: TimeSpan.FromMilliseconds(500), capacity: 5);
 
             var spy = new List<DateTimeOffset>();
 
@@ -51,7 +51,7 @@ namespace HallPass.UnitTests
         [Fact]
         public async Task GetTicketAsync___should_work_for_multiple_threads_With_bursting()
         {
-            var bucket = new LeakyBucket(leakAmount: 1, leakPeriod: TimeSpan.FromMilliseconds(500), capacity: 5);
+            var bucket = new LeakyBucket(rate: 1, frequency: TimeSpan.FromMilliseconds(500), capacity: 5);
             var spy = new ConcurrentBag<DateTimeOffset>();
 
             var tasks = Enumerable.Range(1, 10)

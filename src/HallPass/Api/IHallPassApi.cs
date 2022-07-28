@@ -11,10 +11,9 @@ namespace HallPass.Api
         Task<IReadOnlyList<Ticket>> GetTicketsAsync(
             string key,
             string instanceId,
-            string bucketType,
-            int requestsPerPeriod,
-            TimeSpan periodDuration,
-            int initialBurst = 0,
+            int amount,
+            TimeSpan frequency,
+            int capacity,
             CancellationToken cancellationToken = default);
     }
 }

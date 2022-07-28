@@ -23,8 +23,8 @@ namespace HallPass
                 var options = Default;
 
                 // register hallpass API rate limits
-                options.UseTokenBucket("https://api.hallpass.dev/oauth/token", 30, TimeSpan.FromMinutes(1));
-                options.UseTokenBucket("https://api.hallpass.dev/hallpasses", 100, TimeSpan.FromMinutes(1));
+                options.UseLeakyBucket("https://api.hallpass.dev/oauth/token", 30, TimeSpan.FromMinutes(1), 30);
+                options.UseLeakyBucket("https://api.hallpass.dev/hallpasses", 100, TimeSpan.FromMinutes(1), 30);
 
                 return options;
             }
@@ -41,32 +41,6 @@ namespace HallPass
         ///     var httpClient = httpClientFactory.CreateHallPassClient();
         /// </summary>
         public bool UseDefaultHttpClient { get; set; } = false;
-        
-        public IBucketConfigurationBuilder UseTokenBucket(string uriPattern, int requests, TimeSpan duration, StringComparison stringComparison = StringComparison.OrdinalIgnoreCase)
-        {
-            var builder = new TokenBucketConfigurationBuilder(
-                requests,
-                duration,
-                factory: services => new TokenBucket(requests, duration),
-                isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern, stringComparison));
-
-            _bucketConfigurationBuilders.Add(builder);
-
-            return builder;
-        }
-
-        public IBucketConfigurationBuilder UseTokenBucket(Func<HttpRequestMessage, bool> isTriggeredBy, int requests, TimeSpan duration)
-        {
-            var builder = new TokenBucketConfigurationBuilder(
-                requests,
-                duration,
-                factory: services => new TokenBucket(requests, duration),
-                isTriggeredBy: isTriggeredBy);
-
-            _bucketConfigurationBuilders.Add(builder);
-
-            return builder;
-        }
 
         public IBucketConfigurationBuilder UseLeakyBucket(string uriPattern, int requests, TimeSpan duration, int capacity, StringComparison stringComparison = StringComparison.OrdinalIgnoreCase)
         {
