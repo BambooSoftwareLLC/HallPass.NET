@@ -3,78 +3,59 @@ using HallPass.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System.Collections.Concurrent;
+using System.Net;
 
 namespace HallPass.IntegrationTests
 {
     public class EndToEndTests
     {
-        [Fact(Skip = "need to hit real endpoints with known rate limits and confirm no breaches")]
-        public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled_with_TokenBucket()
+        [Fact]
+        public async Task Can_make_concurrent_requests_from_a_single_instance_that_are_properly_throttled_with_TokenBucket()
         {
-            var instances = Enumerable.Range(1, 10);
-            var uri = TestEndpoints.GetRandom();
+            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/token-bucket/20-per-60-seconds/{Guid.NewGuid().ToString()[..6]}";
             var sharedKey = uri;
 
-            var spy = new ConcurrentBag<DateTimeOffset>();
+            var spy = new ConcurrentBag<HttpResponseMessage>();
 
-            var clientId = TestConfig.GetConfiguration().HallPassClientId();
-            var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
+            var clientId = TestConfig.HallPassClientId();
+            var clientSecret = TestConfig.HallPassClientSecret();
 
-            var tasks = instances
-                .Select(_ => Task.Run(async () =>
-                {
-                    // configure dependency injection that uses HallPass configuration extensions
-                    var services = new ServiceCollection();
+            var apiKey = TestConfig.HallPassTestApiKey();
 
-                    services.AddHallPass(hallPass =>
-                    {
-                        // use HallPass remotely
-                        hallPass
-                            .UseTokenBucket(uri, 10, TimeSpan.FromSeconds(5))
-                            .ForMultipleInstances(clientId, clientSecret, key: uri);
-                    });
+            // configure dependency injection that uses HallPass configuration extensions
+            var services = new ServiceCollection();
 
-                    // make a loop of API calls to the throttled endpoint
-                    var serviceProvider = services.BuildServiceProvider(validateScopes: true);
-                    var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            services.AddHallPass(hallPass =>
+            {
+                // use HallPass locally
+                hallPass.UseTokenBucket(uri, 20, TimeSpan.FromSeconds(60));
+            });
 
-                    for (int i = 0; i < 5; i++)
+            // make a loop of API calls to the throttled endpoint
+            var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+
+            for (int i = 0; i < 5; i++)
+            {
+                var tasks = Enumerable.Range(1, 10)
+                    .Select(async _ =>
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
+                        httpClient.DefaultRequestHeaders.Add("hallpass-api-key", apiKey);
+
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
+                        spy.Add(response);
 
-                        // make sure nothing blows up
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            throw new HttpRequestException($"URI: {uri}");
-                        }
+                        // fail early
+                        response.StatusCode.ShouldBe(HttpStatusCode.OK, $"request: {spy.Count}");
+                    })
+                    .ToList();
 
-                        spy.Add(DateTimeOffset.Now);
-                    }
-                }))
-                .ToList();
-
-            await Task.WhenAll(tasks);
-
-            spy.Count.ShouldBe(50);
-
-            // make sure calls are throttled as expected
-            var spyQueue = new Queue<DateTimeOffset>(spy.OrderBy(s => s));
-            var localCounts = new List<int>();
-            while (spyQueue.TryDequeue(out var callTime))
-            {
-                var earlyBound = callTime - TimeSpan.FromMilliseconds(2500);
-                var lateBound = callTime + TimeSpan.FromMilliseconds(2500);
-                var localCount = spy.Count(x => x >= earlyBound && x < lateBound);
-
-                // MUST be bound by this
-                localCount.ShouldBeLessThanOrEqualTo(10);
-
-                localCounts.Add(localCount);
+                await Task.WhenAll(tasks);
             }
 
-            // should also be greater than this on average to demonstrate reasonable usage of available capacity
-            localCounts.Average().ShouldBeGreaterThan(5);
+            spy.Count.ShouldBe(50);
+            spy.ShouldNotContain(msg => msg.StatusCode == HttpStatusCode.TooManyRequests);
         }
 
         [Fact(Skip = "need to hit real endpoints with known rate limits and confirm no breaches")]
@@ -86,8 +67,8 @@ namespace HallPass.IntegrationTests
 
             var spy = new ConcurrentBag<DateTimeOffset>();
 
-            var clientId = TestConfig.GetConfiguration().HallPassClientId();
-            var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
+            var clientId = TestConfig.HallPassClientId();
+            var clientSecret = TestConfig.HallPassClientSecret();
 
             var tasks = instances
                 .Select(_ => Task.Run(async () =>
@@ -150,8 +131,8 @@ namespace HallPass.IntegrationTests
             var uri = TestEndpoints.GetRandom();
             var sharedKey = uri;
 
-            var clientId = TestConfig.GetConfiguration().HallPassClientId();
-            var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
+            var clientId = TestConfig.HallPassClientId();
+            var clientSecret = TestConfig.HallPassClientSecret();
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using HallPass.Buckets;
+using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -35,14 +36,26 @@ namespace HallPass.Configuration
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var tasks = _bucketConfigurations.Value
+            var buckets = _bucketConfigurations.Value
                 .Where(c => c.IsTriggeredBy(request))
                 .Select(config => config.Bucket)
-                .Select(bucket => bucket.GetTicketAsync(cancellationToken));
+                .ToList();
 
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+            var tasks = buckets.Select(async bucket =>
+            {
+                var ticket = await bucket.GetTicketAsync(cancellationToken);
+                return (ticket, bucket);
+            });
 
-            return await base.SendAsync(request, cancellationToken);
+            (Ticket ticket, IBucket bucket)[] ticketResults = await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            var response = await base.SendAsync(request, cancellationToken);
+
+            // adjust bucket window
+            var shiftWindowTasks = ticketResults.Select(tr => tr.bucket.ShiftWindowAsync(tr.ticket, cancellationToken));
+            await Task.WhenAll(shiftWindowTasks);
+
+            return response;
         }
     }
 }

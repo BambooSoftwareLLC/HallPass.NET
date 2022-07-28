@@ -18,6 +18,8 @@ jobs:
           HallPass_Api_ClientId: ${{ secrets.HALLPASS_API_CLIENTID }}
           HallPass_Api_ClientSecret: ${{ secrets.HALLPASS_API_CLIENTSECRET }}
           HallPass_Api_BaseUrl: ${{ secrets.HALLPASS_API_BASEURL }}
+          HallPass_Test_Api_BaseUrl: ${{ secrets.HALLPASS_TEST_API_BASEURL }}
+          HallPass_Test_Api_ApiKey: ${{ secrets.HALLPASS_TEST_API_APIKEY }}
 
 
   get_version:

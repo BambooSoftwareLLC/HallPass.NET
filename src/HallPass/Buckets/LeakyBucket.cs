@@ -8,6 +8,8 @@ namespace HallPass.Buckets
     internal class LeakyBucket : IBucket
     {
         private readonly ConcurrentQueue<Ticket> _tickets = new ConcurrentQueue<Ticket>();
+
+        private TimeSpan _shift = TimeSpan.Zero;
         
         private readonly int _requestsPerPeriod;
         private readonly TimeSpan _periodDuration;
@@ -26,7 +28,7 @@ namespace HallPass.Buckets
             var validFrom = DateTimeOffset.UtcNow;
             for (int i = 0; i < initialBurst; i++)
             {
-                _tickets.Enqueue(Ticket.New(validFrom, validFrom + _periodDuration));
+                _tickets.Enqueue(Ticket.New(validFrom, validFrom + _periodDuration, windowId: "TODO"));
             }
 
             // update the time of last refill
@@ -46,7 +48,11 @@ namespace HallPass.Buckets
                 if (ticket.IsNotYetValid())
                     await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken);
 
-                if (ticket.IsExpired())
+                // wait for shift outside of WaitUntilValidAsync to cover cases where a ticket is waiting in that method while the shift was updated
+                if (_shift > TimeSpan.Zero)
+                    await Task.Delay(_shift, cancellationToken);
+
+                if (ticket.IsExpired(_shift))
                     continue;
 
                 return ticket;
@@ -66,7 +72,7 @@ namespace HallPass.Buckets
             for (int i = 0; i < refillQuantity; i++)
             {
                 validFrom += perTicketStagger;
-                _tickets.Enqueue(Ticket.New(validFrom, validFrom + _periodDuration));
+                _tickets.Enqueue(Ticket.New(validFrom, validFrom + _periodDuration, windowId: "TODO"));
             }
 
             // update the time of last refill
@@ -76,7 +82,7 @@ namespace HallPass.Buckets
             Interlocked.Exchange(ref _refilling, 0);
         }
 
-        public Task ShiftWindowAsync(TimeSpan shift, string windowId, CancellationToken cancellationToken = default)
+        public Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default)
         {
             // todo
             return Task.CompletedTask;

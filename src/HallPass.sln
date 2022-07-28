@@ -7,9 +7,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HallPass", "HallPass\HallPa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HallPass.UnitTests", "HallPass.UnitTests\HallPass.UnitTests.csproj", "{678C5345-1CBD-4EDD-9451-B7B4F19B1111}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HallPass.IntegrationTests", "HallPass.IntegrationTests\HallPass.IntegrationTests.csproj", "{1153F739-AF3A-4219-8F5E-36A2E0225B4B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HallPass.IntegrationTests", "HallPass.IntegrationTests\HallPass.IntegrationTests.csproj", "{1153F739-AF3A-4219-8F5E-36A2E0225B4B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HallPass.TestHelpers", "HallPass.TestHelpers\HallPass.TestHelpers.csproj", "{468C2309-FC8A-4715-98B3-56B22D5E9E89}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HallPass.TestHelpers", "HallPass.TestHelpers\HallPass.TestHelpers.csproj", "{468C2309-FC8A-4715-98B3-56B22D5E9E89}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{D03371D2-6F61-45AB-B09F-2BD7060F5BB6}"
+	ProjectSection(SolutionItems) = preProject
+		..\.github\workflows\dotnet.yaml = ..\.github\workflows\dotnet.yaml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

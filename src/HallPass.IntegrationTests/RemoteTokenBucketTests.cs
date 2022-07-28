@@ -1,7 +1,6 @@
 ﻿using HallPass.Api;
 using HallPass.Buckets;
 using HallPass.Configuration;
-using HallPass.Helpers;
 using LazyCache;
 using NSubstitute;
 using Shouldly;
@@ -15,8 +14,8 @@ namespace HallPass.IntegrationTests
         public async Task GetTicketAsync___should_allow_15_requests_in_14_seconds_with_TokenBucket_allowing_5_request_every_5_seconds()
         {
             var cache = new CachingService();
-            var clientId = TestConfig.GetConfiguration().HallPassClientId();
-            var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
+            var clientId = TestConfig.HallPassClientId();
+            var clientSecret = TestConfig.HallPassClientSecret();
             using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
 
             var httpClientFactory = Substitute.For<IHttpClientFactory>();
@@ -47,8 +46,8 @@ namespace HallPass.IntegrationTests
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_single_bucket()
         {
             var cache = new CachingService();
-            var clientId = TestConfig.GetConfiguration().HallPassClientId();
-            var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
+            var clientId = TestConfig.HallPassClientId();
+            var clientSecret = TestConfig.HallPassClientSecret();
 
             using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
             var httpClientFactory = Substitute.For<IHttpClientFactory>();
@@ -84,8 +83,8 @@ namespace HallPass.IntegrationTests
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_multiple_buckets_with_same_key_and_unique_instanceIds()
         {
             var cache = new CachingService();
-            var clientId = TestConfig.GetConfiguration().HallPassClientId();
-            var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
+            var clientId = TestConfig.HallPassClientId();
+            var clientSecret = TestConfig.HallPassClientSecret();
 
             using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
             var httpClientFactory = Substitute.For<IHttpClientFactory>();
@@ -133,8 +132,8 @@ namespace HallPass.IntegrationTests
         public async Task GetTicketAsync___should_work_for_multiple_time_windows_for_multiple_threads()
         {
             var cache = new CachingService();
-            var clientId = TestConfig.GetConfiguration().HallPassClientId();
-            var clientSecret = TestConfig.GetConfiguration().HallPassClientSecret();
+            var clientId = TestConfig.HallPassClientId();
+            var clientSecret = TestConfig.HallPassClientSecret();
 
             using var httpClient = new HttpClient() { BaseAddress = new Uri("https://api.hallpass.dev") };
             var httpClientFactory = Substitute.For<IHttpClientFactory>();

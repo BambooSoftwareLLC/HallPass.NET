@@ -11,6 +11,9 @@ namespace HallPass.Buckets
     internal sealed class RemoteTokenBucket : IBucket
     {
         private readonly ConcurrentSortedStack<Ticket> _tickets = new(Comparer<Ticket>.Create((a, b) => a.ValidFrom.CompareTo(b.ValidFrom)));
+        
+        private TimeSpan _shift = TimeSpan.Zero;
+
         private readonly IHallPassApi _hallPass;
 
         private readonly int _requestsPerPeriod;
@@ -50,8 +53,12 @@ namespace HallPass.Buckets
                 if (ticket.IsNotYetValid())
                     await ticket.WaitUntilValidAsync(cancellationToken);
 
+                // wait for shift outside of WaitUntilValidAsync to cover cases where a ticket is waiting in that method while the shift was updated
+                if (_shift > TimeSpan.Zero)
+                    await Task.Delay(_shift, cancellationToken);
+
                 // if the ticket has already expired, then we need to try to get another ticket
-                if (!ticket.IsExpired())
+                if (!ticket.IsExpired(_shift))
                     break;
             }
 
@@ -105,11 +112,11 @@ namespace HallPass.Buckets
 
             return Enumerable
                 .Range(1, countToGenerate)
-                .Select(_ => Ticket.New(validFrom, validFrom + _periodDuration))
+                .Select(_ => Ticket.New(validFrom, validFrom + _periodDuration, windowId: "TODO"))
                 .ToList();
         }
 
-        public Task ShiftWindowAsync(TimeSpan shift, string windowId, CancellationToken cancellationToken = default)
+        public Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default)
         {
             // todo
             return Task.CompletedTask;
