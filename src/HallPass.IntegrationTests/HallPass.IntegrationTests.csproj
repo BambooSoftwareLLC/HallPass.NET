@@ -30,7 +30,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HallPass.TestHelpers\HallPass.TestHelpers.csproj" />
     <ProjectReference Include="..\HallPass\HallPass.csproj" />
   </ItemGroup>
 

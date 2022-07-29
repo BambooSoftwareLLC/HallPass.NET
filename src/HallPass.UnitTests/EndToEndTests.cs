@@ -1,9 +1,7 @@
-﻿using HallPass.TestHelpers;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -16,7 +14,8 @@ namespace HallPass.UnitTests
         [Fact]
         public async Task Can_make_a_single_request_with_LeakyBucket()
         {
-            var uri = TestEndpoints.GetRandom();
+            var traceId = Guid.NewGuid().ToString()[..6];
+            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/10-rate-5000-milliseconds-10-capacity/{traceId}";
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
@@ -24,7 +23,7 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10, key: traceId);
             });
 
 
@@ -32,19 +31,17 @@ namespace HallPass.UnitTests
             var serviceProvider = services.BuildServiceProvider(validateScopes: true);
             var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
             var httpClient = httpClientFactory.CreateHallPassClient();
+            httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
             var response = await httpClient.GetAsync(uri);
 
-            // make sure nothing blows up
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new HttpRequestException($"URI: {uri}");
-            }
+            response.EnsureSuccessStatusCode();
         }
 
-        [Fact(Skip = "Flaky, wait until we hit our own test API")]
+        [Fact]
         public async Task Can_make_looped_requests_that_are_properly_throttled()
         {
-            var uri = TestEndpoints.GetRandom();
+            var traceId = Guid.NewGuid().ToString()[..6];
+            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/10-rate-5000-milliseconds-10-capacity/{traceId}";
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
@@ -52,42 +49,27 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10, key: traceId);
             });
 
             // make a loop of API calls to the throttled endpoint
             var serviceProvider = services.BuildServiceProvider(validateScopes: true);
             var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
             var httpClient = httpClientFactory.CreateHallPassClient();
-
-            var spy = new List<DateTimeOffset>();
+            httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
 
             for (int i = 0; i < 35; i++)
             {
                 var response = await httpClient.GetAsync(uri);
-
-                // make sure nothing blows up
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new HttpRequestException($"URI: {uri}");
-                }
-
-                spy.Add(DateTimeOffset.Now);
+                response.EnsureSuccessStatusCode();
             }
-
-            // make sure calls are throttled as expected
-            var server14SecondsLater = spy.Min().AddSeconds(14);
-            var requestsInTime = spy.Where(s => s <= server14SecondsLater).ToList();
-
-            // 0: 10, 5: 20, 10: 30
-            requestsInTime.Count.ShouldBeLessThanOrEqualTo(30);
-            requestsInTime.Count.ShouldBeGreaterThan(25);
         }
 
         [Fact]
         public async Task Can_make_concurrent_requests_that_are_properly_throttled()
         {
-            var uri = TestEndpoints.GetRandom();
+            var traceId = Guid.NewGuid().ToString()[..6];
+            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/10-rate-5000-milliseconds-10-capacity/{traceId}";
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
@@ -95,7 +77,7 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10, key: traceId);
             });
 
             // make a concurrent bunch of API calls to the throttled endpoint
@@ -109,45 +91,30 @@ namespace HallPass.UnitTests
                 .Select(_ => Task.Run(async () =>
                 {
                     var httpClient = httpClientFactory.CreateHallPassClient();
+                    httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
+
                     var response = await httpClient.GetAsync(uri);
-
-                    // make sure nothing blows up
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        throw new HttpRequestException($"URI: {uri}");
-                    }
-
-                    spy.Add(DateTimeOffset.Now);
-
-                    return response;
+                    response.EnsureSuccessStatusCode();
                 }))
                 .ToList();
 
-            var responses = (await Task.WhenAll(tasks)).ToList();
-            responses.Count.ShouldBe(40);
-            responses.Count(r => r.IsSuccessStatusCode).ShouldBe(40);
-
-            // make sure calls are throttled as expected
-            var fourteenSecondsLater = spy.Min().AddSeconds(14);
-            var requestsInTime = spy.Where(s => s <= fourteenSecondsLater).ToList();
-
-            spy.Count.ShouldBe(40);
-
-            // 0: 10, 5: 20, 10: 30
-            requestsInTime.Count.ShouldBe(30);
+            await Task.WhenAll(tasks);
         }
 
         [Fact]
         public async Task Can_compose_multiple_rate_limits()
         {
-            var catEndpoints = new[]
-            {
-                "https://catfact.ninja/fact",
-                "https://catfact.ninja/facts",
-                "https://catfact.ninja/breeds",
-            };
+            var traceIdA = Guid.NewGuid().ToString()[..6];
+            var localUriA = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/10-rate-3000-milliseconds-10-capacity/{traceIdA}";
 
-            //var uri = TestEndpoints.GetRandom();
+            var traceIdB = Guid.NewGuid().ToString()[..6];
+            var localUriB = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/10-rate-3000-milliseconds-10-capacity/{traceIdB}";
+
+            var traceIdC = Guid.NewGuid().ToString()[..6];
+            var localUriC = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/10-rate-3000-milliseconds-10-capacity/{traceIdC}";
+
+            var traceIdD = Guid.NewGuid().ToString()[..6];
+            var globalUri = $"{TestConfig.HallPassTestApiBaseUrl()}";
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
@@ -155,12 +122,12 @@ namespace HallPass.UnitTests
             services.AddHallPass(hallPass =>
             {
                 // use HallPass locally
-                hallPass.UseLeakyBucket(request => request.RequestUri.ToString().Equals("https://catfact.ninja/fact"), 10, TimeSpan.FromSeconds(3), 10);
-                hallPass.UseLeakyBucket("https://catfact.ninja/facts", 10, TimeSpan.FromSeconds(3), 10);
-                hallPass.UseLeakyBucket("https://catfact.ninja/breeds", 10, TimeSpan.FromSeconds(3), 10);
+                hallPass.UseLeakyBucket(request => request.RequestUri.ToString().Equals(localUriA), 10, TimeSpan.FromSeconds(3), 10, keySelector: r => traceIdA);
+                hallPass.UseLeakyBucket(localUriB, 10, TimeSpan.FromSeconds(3), 10, key: traceIdB);
+                hallPass.UseLeakyBucket(localUriC, 10, TimeSpan.FromSeconds(3), 10, key: traceIdC);
                 
                 // global limit for the catfact.ninja API
-                hallPass.UseLeakyBucket("https://catfact.ninja", 20, TimeSpan.FromSeconds(3), 20);
+                hallPass.UseLeakyBucket(globalUri, 20, TimeSpan.FromSeconds(3), 20, key: traceIdD);
             });
 
             // make a concurrent bunch of API calls to the throttled endpoint
@@ -169,64 +136,55 @@ namespace HallPass.UnitTests
 
             var spy = new ConcurrentBag<DateTimeOffset>();
 
-            var factTasks = Enumerable
+            var tasksA = Enumerable
                 .Range(1, 15)
                 .Select(_ => Task.Run(async () =>
                 {
-                    var uri = "https://catfact.ninja/fact";
+                    var uri = localUriA;
                     var httpClient = httpClientFactory.CreateHallPassClient();
-                    var response = await httpClient.GetAsync(uri);
+                    httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
 
-                    // make sure nothing blows up
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        throw new HttpRequestException($"URI: {uri}");
-                    }
+                    var response = await httpClient.GetAsync(uri);
+                    response.EnsureSuccessStatusCode();
 
                     spy.Add(DateTimeOffset.Now);
 
                     return response;
                 }));
 
-            var factsTasks = Enumerable
+            var tasksB = Enumerable
                 .Range(1, 15)
                 .Select(_ => Task.Run(async () =>
                 {
-                    var uri = "https://catfact.ninja/facts";
+                    var uri = localUriB;
                     var httpClient = httpClientFactory.CreateHallPassClient();
-                    var response = await httpClient.GetAsync(uri);
+                    httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
 
-                    // make sure nothing blows up
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        throw new HttpRequestException($"URI: {uri}");
-                    }
+                    var response = await httpClient.GetAsync(uri);
+                    response.EnsureSuccessStatusCode();
 
                     spy.Add(DateTimeOffset.Now);
 
                     return response;
                 }));
 
-            var breedsTasks = Enumerable
+            var tasksC = Enumerable
                 .Range(1, 15)
                 .Select(_ => Task.Run(async () =>
                 {
-                    var uri = "https://catfact.ninja/breeds";
+                    var uri = localUriC;
                     var httpClient = httpClientFactory.CreateHallPassClient();
-                    var response = await httpClient.GetAsync(uri);
+                    httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
 
-                    // make sure nothing blows up
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        throw new HttpRequestException($"URI: {uri}");
-                    }
+                    var response = await httpClient.GetAsync(uri);
+                    response.EnsureSuccessStatusCode();
 
                     spy.Add(DateTimeOffset.Now);
 
                     return response;
                 }));
 
-            var allTasks = factTasks.Concat(factsTasks).Concat(breedsTasks);
+            var allTasks = tasksA.Concat(tasksB).Concat(tasksC);
 
             var responses = (await Task.WhenAll(allTasks)).ToList();
             responses.Count.ShouldBe(45);
@@ -242,10 +200,11 @@ namespace HallPass.UnitTests
             requestsInTime.Count.ShouldBe(40);
         }
 
-        [Fact(Skip = "Flaky, wait until we hit our own test API")]
+        [Fact]
         public async Task Can_use_default_HttpClient()
         {
-            var uri = TestEndpoints.GetRandom();
+            var traceId = Guid.NewGuid().ToString()[..6];
+            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/10-rate-5000-milliseconds-10-capacity/{traceId}";
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
@@ -255,36 +214,20 @@ namespace HallPass.UnitTests
                 hallPass.UseDefaultHttpClient = true;
 
                 // use HallPass locally
-                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10);
+                hallPass.UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(5), 10, key: traceId);
             });
 
             // make a loop of API calls to the throttled endpoint
             var serviceProvider = services.BuildServiceProvider(validateScopes: true);
             var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
             var httpClient = httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
 
-            var spy = new List<DateTimeOffset>();
-
-            var fourteenSecondsLater = DateTimeOffset.Now.AddSeconds(14);
-            while (DateTimeOffset.Now < fourteenSecondsLater)
+            for (int i = 0; i < 15; i++)
             {
                 var response = await httpClient.GetAsync(uri);
-
-                // make sure nothing blows up
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new HttpRequestException($"URI: {uri}");
-                }
-
-                spy.Add(DateTimeOffset.Now);
+                response.EnsureSuccessStatusCode();
             }
-
-            // make sure calls are throttled as expected
-            var server14SecondsLater = spy.Min().AddSeconds(14);
-            var requestsInTime = spy.Where(s => s <= server14SecondsLater).ToList();
-
-            // 0: 10, 5: 20, 10: 30
-            requestsInTime.Count.ShouldBe(30);
         }
     }
 }
