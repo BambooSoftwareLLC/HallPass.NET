@@ -41,7 +41,7 @@ namespace HallPass.UnitTests
             }
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky, wait until we hit our own test API")]
         public async Task Can_make_looped_requests_that_are_properly_throttled()
         {
             var uri = TestEndpoints.GetRandom();
@@ -242,7 +242,7 @@ namespace HallPass.UnitTests
             requestsInTime.Count.ShouldBe(40);
         }
 
-        [Fact]
+        [Fact(Skip = "Flaky, wait until we hit our own test API")]
         public async Task Can_use_default_HttpClient()
         {
             var uri = TestEndpoints.GetRandom();
