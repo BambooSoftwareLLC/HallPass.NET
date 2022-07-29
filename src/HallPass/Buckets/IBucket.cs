@@ -8,5 +8,6 @@ namespace HallPass.Buckets
     {
         Task<Ticket> GetTicketAsync(CancellationToken cancellationToken = default);
         Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default);
+        public TimeSpan Frequency { get; }
     }
 }

@@ -3,7 +3,6 @@ using HallPass.TestHelpers;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System.Collections.Concurrent;
-using System.Net;
 
 namespace HallPass.IntegrationTests
 {
@@ -31,8 +30,8 @@ namespace HallPass.IntegrationTests
                     {
                         // use HallPass remotely
                         hallPass
-                            .UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(15), 10)
-                            .ForMultipleInstances(clientId, clientSecret, key: uri);
+                            .UseLeakyBucket(uri, 10, TimeSpan.FromSeconds(15), 10, key: uri)
+                            .ForMultipleInstances(clientId, clientSecret);
                     });
 
                     // make a loop of API calls to the throttled endpoint
@@ -92,8 +91,8 @@ namespace HallPass.IntegrationTests
             {
                 // use HallPass remotely
                 hallPass
-                    .UseLeakyBucket(uri, 1, TimeSpan.FromSeconds(5), 1)
-                    .ForMultipleInstances(clientId, clientSecret, key: uri);
+                    .UseLeakyBucket(uri, 1, TimeSpan.FromSeconds(5), 1, key: uri)
+                    .ForMultipleInstances(clientId, clientSecret);
             });
 
             var serviceProvider = services.BuildServiceProvider(validateScopes: true);

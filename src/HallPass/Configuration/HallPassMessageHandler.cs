@@ -24,21 +24,33 @@ namespace HallPass.Configuration
 
         protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var tasks = _bucketConfigurations.Value
-                .Where(c => c.IsTriggeredBy(request))
-                .Select(config => config.Bucket)
-                .Select(bucket => bucket.GetTicketAsync(cancellationToken));
+            var buckets = _bucketConfigurations.Value
+                .Where(config => config.IsTriggeredBy(request))
+                .Select(config => config.GetOrBuild(request))
+                .ToList();
 
-            Task.WhenAll(tasks).Wait(cancellationToken);
+            var tasks = buckets.Select(async bucket =>
+            {
+                var ticket = await bucket.GetTicketAsync(cancellationToken);
+                return (ticket, bucket);
+            });
 
-            return base.Send(request, cancellationToken);
+            (Ticket ticket, IBucket bucket)[] ticketResults = Task.WhenAll(tasks).GetAwaiter().GetResult();
+
+            var response = base.Send(request, cancellationToken);
+
+            // adjust bucket window
+            var shiftWindowTasks = ticketResults.Select(tr => tr.bucket.ShiftWindowAsync(tr.ticket, cancellationToken));
+            Task.WhenAll(shiftWindowTasks).GetAwaiter().GetResult();
+
+            return response;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var buckets = _bucketConfigurations.Value
-                .Where(c => c.IsTriggeredBy(request))
-                .Select(config => config.Bucket)
+                .Where(config => config.IsTriggeredBy(request))
+                .Select(config => config.GetOrBuild(request))
                 .ToList();
 
             var tasks = buckets.Select(async bucket =>

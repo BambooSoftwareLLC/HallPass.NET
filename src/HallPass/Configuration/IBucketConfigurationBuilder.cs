@@ -5,7 +5,7 @@ namespace HallPass
 {
     public interface IBucketConfigurationBuilder
     {
-        IBucketConfigurationBuilder ForMultipleInstances(string clientId, string clientSecret, string key = null, string instanceId = null);
+        IBucketConfigurationBuilder ForMultipleInstances(string clientId, string clientSecret);
         internal BucketConfiguration Build(IServiceProvider services);
     }
 }

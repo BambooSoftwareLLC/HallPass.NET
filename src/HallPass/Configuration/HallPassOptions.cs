@@ -42,28 +42,51 @@ namespace HallPass
         /// </summary>
         public bool UseDefaultHttpClient { get; set; } = false;
 
-        public IBucketConfigurationBuilder UseLeakyBucket(string uriPattern, int requests, TimeSpan duration, int capacity, StringComparison stringComparison = StringComparison.OrdinalIgnoreCase)
+        public IBucketConfigurationBuilder UseLeakyBucket(
+            string uriPattern,
+            int requests,
+            TimeSpan duration,
+            int capacity,
+            StringComparison stringComparison = StringComparison.OrdinalIgnoreCase,
+            string key = null,
+            string instanceId = null)
         {
+            key ??= Guid.NewGuid().ToString();
+            instanceId ??= Guid.NewGuid().ToString();
+
             var builder = new LeakyBucketConfigurationBuilder(
                 requests,
                 duration,
                 capacity,
-                factory: services => new LeakyBucket(requests, duration, capacity),
-                isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern, stringComparison));
+                factory: services => request => new LeakyBucket(requests, duration, capacity),
+                isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern, stringComparison),
+                keySelector: request => key,
+                instanceIdSelector: request => instanceId);
 
             _bucketConfigurationBuilders.Add(builder);
 
             return builder;
         }
 
-        public IBucketConfigurationBuilder UseLeakyBucket(Func<HttpRequestMessage, bool> isTriggeredBy, int requests, TimeSpan duration, int capacity)
+        public IBucketConfigurationBuilder UseLeakyBucket(
+            Func<HttpRequestMessage, bool> isTriggeredBy,
+            int requests,
+            TimeSpan duration,
+            int capacity,
+            Func<HttpRequestMessage, string> keySelector = null,
+            Func<HttpRequestMessage, string> instanceIdSelector = null)
         {
+            var backupKey = Guid.NewGuid().ToString();
+            var backupId = Guid.NewGuid().ToString();
+
             var builder = new LeakyBucketConfigurationBuilder(
                 requests,
                 duration,
                 capacity,
-                factory: services => new LeakyBucket(requests, duration, capacity),
-                isTriggeredBy: isTriggeredBy);
+                factory: services => request => new LeakyBucket(requests, duration, capacity),
+                isTriggeredBy: isTriggeredBy,
+                keySelector: keySelector ?? (request => backupKey),
+                instanceIdSelector: instanceIdSelector ?? (request => backupId));
 
             _bucketConfigurationBuilders.Add(builder);
 

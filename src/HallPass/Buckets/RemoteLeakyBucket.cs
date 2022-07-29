@@ -21,7 +21,9 @@ namespace HallPass.Buckets
         private readonly int _capacity;
         private readonly string _key;
         private readonly string _instanceId;
+        
         public string InstanceId => _instanceId;
+        public TimeSpan Frequency => _frequency;
 
         // keep track of tickets returned per remote call for fail-safe if HallPass Remote goes down temporarily
         // todo: generalize this

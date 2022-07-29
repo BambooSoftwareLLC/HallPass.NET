@@ -18,6 +18,8 @@ namespace HallPass.Buckets
         private readonly TimeSpan _frequency;
         private readonly int _capacity;
 
+        public TimeSpan Frequency => _frequency;
+
         private DateTimeOffset _lastRefill = DateTimeOffset.UtcNow;
         private int _refilling = 0;
 
