@@ -1,9 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <PackageId>HallPass</PackageId>
-    <Version>0.4.1</Version>
+    <Version>0.5.0</Version>
     <Title>HallPass</Title>
     <Description>.NET SDK for the HallPass service</Description>
     <Authors>Michael Harris</Authors>
@@ -22,6 +22,7 @@
     <PackageReference Include="LazyCache" Version="2.4.0" />
     <PackageReference Include="lazycache.aspnetcore" Version="2.4.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
+    <PackageReference Include="System.Text.Json" Version="6.0.0" />
   </ItemGroup>
 
 </Project>

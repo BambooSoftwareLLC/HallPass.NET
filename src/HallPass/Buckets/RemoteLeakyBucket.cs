@@ -13,6 +13,10 @@ namespace HallPass.Buckets
         private readonly ConcurrentSortedStack<Ticket> _tickets = new(Comparer<Ticket>.Create((a, b) => a.ValidFrom.CompareTo(b.ValidFrom)));
 
         private TimeSpan _shift = TimeSpan.Zero;
+        private TimeSpan _shiftDelta = TimeSpan.Zero;
+        private long _shiftVersion = 0;
+        private int _shifting = 0;
+        private readonly ConcurrentFixedSizeQueue<string> _windowIds = new(10);
         
         private readonly IHallPassApi _hallPass;
 
@@ -56,12 +60,25 @@ namespace HallPass.Buckets
                 }
 
                 // if the ticket isn't yet valid, then wait for it to become valid
-                if (ticket.IsNotYetValid())
-                    await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken);
+                //if (ticket.IsNotYetValid())
+                //    await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken);
+
+                //debug
+                try
+                {
+                    if (ticket.IsNotYetValid())
+                        await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+
+                    throw;
+                }
+                //debug
 
                 // wait for shift outside of WaitUntilValidAsync to cover cases where a ticket is waiting in that method while the shift was updated
-                if (_shift > TimeSpan.Zero)
-                    await Task.Delay(_shift, cancellationToken);
+                if (_shift + _shiftDelta > TimeSpan.Zero)
+                    await Task.Delay(_shift + _shiftDelta, cancellationToken);
 
                 // if the ticket has already expired, then we need to try to get another ticket
                 if (!ticket.IsExpired(_shift))
@@ -73,10 +90,32 @@ namespace HallPass.Buckets
 
         private async Task RefillAsync(CancellationToken cancellationToken)
         {
-            IReadOnlyList<Ticket> tickets;
+            IReadOnlyCollection<Ticket> tickets;
             try
             {
-                tickets = await _hallPass.GetTicketsAsync(_key, _instanceId, _rate, _frequency, _capacity, cancellationToken);
+                var response = await _hallPass.GetTicketsAsync(_key, _instanceId, _rate, _frequency, _capacity, cancellationToken).ConfigureAwait(false);
+                tickets = response.HallPasses;
+
+                // update shift atomically
+                while (true)
+                {
+                    // try to take the lock until successful
+                    if (0 != Interlocked.Exchange(ref _shifting, 1))
+                        continue;
+
+                    _shift = response.ShiftInfo.Shift;
+                    _shiftDelta = TimeSpan.Zero;
+                    _shiftVersion = response.ShiftInfo.Version;
+
+                    // release lock
+                    Interlocked.Exchange(ref _shifting, 0);
+                    break;
+                }
+            }
+            catch (HallPassAuthenticationException ex)
+            {
+                // log?
+                throw;
             }
             catch (Exception ex)
             {
@@ -89,7 +128,7 @@ namespace HallPass.Buckets
             RefreshMovingAverage(tickets);
         }
 
-        private void RefreshMovingAverage(IReadOnlyList<Ticket> tickets)
+        private void RefreshMovingAverage(IReadOnlyCollection<Ticket> tickets)
         {
             lock (_refreshingMovingAverage)
             {
@@ -130,10 +169,36 @@ namespace HallPass.Buckets
             }
         }
 
-        public Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default)
+        public async Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default)
         {
-            // todo
-            return Task.CompletedTask;
+            if (_windowIds.TryAdd(ticket.WindowId))
+            {
+                // immediately update local shiftDelta (atomically)
+                while (true)
+                {
+                    // try to take the lock until successful
+                    if (0 != Interlocked.Exchange(ref _shifting, 1))
+                        continue;
+
+                    var shiftDelta = DateTimeOffset.UtcNow - (ticket.ValidFrom + _shift);
+                    _shiftDelta += shiftDelta;
+
+                    // while locked, update remote server
+                    UpdateShiftResult updateShiftResult = await _hallPass
+                        .UpdateShiftAsync(shiftDelta, ticket.WindowId, _shiftVersion, _key, _rate, _frequency, _capacity, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    _shift = updateShiftResult.Shift;
+                    _shiftDelta = TimeSpan.Zero;
+                    _shiftVersion = updateShiftResult.Version;
+
+                    // release lock
+                    Interlocked.Exchange(ref _shifting, 0);
+                    break;
+                }
+            }
+
+            // IDEA: check remote server again after halfway through a given window's tickets?
         }
     }
 }

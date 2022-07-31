@@ -4,6 +4,7 @@ using LazyCache;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Net.Http;
+using System.Text;
 
 namespace HallPass.Configuration
 {
@@ -35,10 +36,10 @@ namespace HallPass.Configuration
             _isTriggeredBy = isTriggeredBy;
 
             var backupKey = Guid.NewGuid().ToString();
-            _keySelector = keySelector ?? (request => backupKey);
+            _keySelector = EscapeString(keySelector ?? (request => backupKey));
 
             var backupId = Guid.NewGuid().ToString();
-            _instanceIdSelector = instanceIdSelector ?? (request => backupId);
+            _instanceIdSelector = EscapeString(instanceIdSelector ?? (request => backupId));
         }
 
         public IBucketConfigurationBuilder ForMultipleInstances(string clientId, string clientSecret)
@@ -68,6 +69,17 @@ namespace HallPass.Configuration
         {
             var cache = services.GetRequiredService<IAppCache>();
             return new(_factory(services), _isTriggeredBy, _keySelector, _instanceIdSelector, cache);
+        }
+
+        private Func<HttpRequestMessage, string> EscapeString(Func<HttpRequestMessage, string> innerFunc)
+        {
+            return request =>
+            {
+                var initialString = innerFunc(request);
+                var bytes = Encoding.UTF8.GetBytes(initialString);
+                var base64 = Convert.ToBase64String(bytes);
+                return Uri.EscapeDataString(base64);
+            };
         }
     }
 }

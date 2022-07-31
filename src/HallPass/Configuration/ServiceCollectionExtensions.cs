@@ -29,7 +29,8 @@ namespace HallPass
             // add a client for calling the HallPass API
             services
                 .AddHttpClient(Constants.HALLPASS_API_HTTPCLIENT_NAME, client => client.BaseAddress = new Uri("https://api.hallpass.dev/"))
-                
+                //.AddHttpClient(Constants.HALLPASS_API_HTTPCLIENT_NAME, client => client.BaseAddress = new Uri("https://localhost:55002/"))
+
                 // use local buckets for HallPass API
                 .AddHttpMessageHandler(serviceProvider => new HallPassMessageHandler(serviceProvider, HallPassOptions.API));
 

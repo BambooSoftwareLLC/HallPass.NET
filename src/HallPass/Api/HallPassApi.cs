@@ -6,8 +6,10 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,7 +31,7 @@ namespace HallPass.Api
             _clientSecret = clientSecret;
         }
 
-        public async Task<IReadOnlyList<Ticket>> GetTicketsAsync(
+        public async Task<HallPassesResponse> GetTicketsAsync(
             string key,
             string instanceId,
             int rate,
@@ -61,7 +63,7 @@ namespace HallPass.Api
             // retry 429's indefinitely
             while (true)
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"v4/hallpasses?{query}");
+                var request = new HttpRequestMessage(HttpMethod.Get, $"v5/hallpasses?{query}");
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
 
                 var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
@@ -78,16 +80,73 @@ namespace HallPass.Api
 
                 var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                var options = new JsonSerializerOptions() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+                var options = new JsonSerializerOptions() { PropertyNameCaseInsensitive = true };
                 var deserializedResponse = JsonSerializer.Deserialize<HallPassesResponse>(contentJson, options);
 
-                return deserializedResponse.hallPasses;
+                return deserializedResponse;
+            }
+        }
+
+        public async Task<UpdateShiftResult> UpdateShiftAsync(
+            TimeSpan shiftDelta,
+            string windowId,
+            long shiftVersion,
+            string key,
+            int rate,
+            TimeSpan frequency,
+            int capacity,
+            CancellationToken cancellationToken)
+        {
+            // refresh (and cache) the access token for the given client_id
+            var accessToken = await _cache.GetOrAddAsync($"access_token-{_clientId}", async entry =>
+            {
+                var token = await AuthenticateAsync(cancellationToken);
+                entry.AbsoluteExpiration = token.Expiration;
+                return token;
+            });
+
+            var httpClient = _httpClientFactory.CreateClient(Constants.HALLPASS_API_HTTPCLIENT_NAME);
+
+            // retry 429's indefinitely
+            while (true)
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, $"v5/shifts/{key}");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
+                request.Content = JsonContent.Create(
+                    new
+                    {
+                        delta = shiftDelta,
+                        window = windowId,
+                        version = shiftVersion,
+                        rate,
+                        frequency = frequency.TotalMilliseconds,
+                        capacity
+                    });
+
+                var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                {
+                    var retryAfterSeconds = response.Headers.RetryAfter.Delta;
+                    if (retryAfterSeconds.HasValue)
+                        await Task.Delay(retryAfterSeconds.Value, cancellationToken);
+                    else
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+
+                    continue;
+                }
+
+                var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                var options = new JsonSerializerOptions() { PropertyNameCaseInsensitive = true };
+                var deserializedResponse = JsonSerializer.Deserialize<UpdateShiftResult>(contentJson, options);
+
+                return deserializedResponse;
             }
         }
 
         private async Task<AccessToken> AuthenticateAsync(CancellationToken cancellationToken)
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, $"v2/oauth/token");
+            var request = new HttpRequestMessage(HttpMethod.Post, $"v5/oauth/token");
             var credentials = new { client_id = _clientId, client_secret = _clientSecret };
             request.Content = new StringContent(JsonSerializer.Serialize(credentials), Encoding.UTF8, "application/json");
 
@@ -110,33 +169,39 @@ namespace HallPass.Api
 
                 else if (!response.IsSuccessStatusCode)
                 {
-                    throw new NotImplementedException("handle auth error");
+                    throw new HallPassAuthenticationException();
                 }
 
                 var contentJson = await response.Content.ReadAsStringAsync(cancellationToken);
                 var tokenResponse = JsonSerializer.Deserialize<AccessTokenResponse>(contentJson);
                 return new AccessToken(
-                    tokenResponse.access_token,
-                    tokenResponse.scope,
+                    tokenResponse.AccessToken,
+                    tokenResponse.Scope,
 
                     // removing a 5-second buffer from the expiration time to be safe
-                    DateTimeOffset.UtcNow + TimeSpan.FromSeconds(tokenResponse.expires_in - 5),
+                    DateTimeOffset.UtcNow + TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 5),
 
-                    tokenResponse.token_type);
+                    tokenResponse.TokenType);
             }
         }
     }
 
     class HallPassesResponse
     {
-        public Ticket[] hallPasses { get; set; }
+        public Ticket[] HallPasses { get; set; }
+        public UpdateShiftResult ShiftInfo { get; set; }
     }
 
     class AccessTokenResponse
     {
-        public string access_token { get; set; }
-        public string scope { get; set; }
-        public int expires_in { get; set; }
-        public string token_type { get; set; }
+        [JsonPropertyName("access_token")]
+        public string AccessToken { get; set; }
+        public string Scope { get; set; }
+
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
+
+        [JsonPropertyName("token_type")]
+        public string TokenType { get; set; }
     }
 }
