@@ -1,6 +1,5 @@
 ﻿using HallPass.Buckets;
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -60,29 +59,13 @@ namespace HallPass.Configuration
                 return (ticket, bucket);
             });
 
-
-
-            var sw = new Stopwatch();
-            sw.Start();
-
             (Ticket ticket, IBucket bucket)[] ticketResults = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-            sw.Stop();
-            var elapsedTickets = sw.Elapsed;
-            sw.Restart();
-
             var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
-
-            sw.Stop();
-            var elapsedApi = sw.Elapsed;
-            sw.Restart();
 
             // adjust bucket window
             var shiftWindowTasks = ticketResults.Select(tr => tr.bucket.ShiftWindowAsync(tr.ticket, cancellationToken));
             await Task.WhenAll(shiftWindowTasks).ConfigureAwait(false);
-
-            sw.Stop();
-            var elapsedShift = sw.Elapsed;
 
             return response;
         }

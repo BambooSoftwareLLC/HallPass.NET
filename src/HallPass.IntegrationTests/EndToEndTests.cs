@@ -5,7 +5,6 @@ namespace HallPass.IntegrationTests
 {
     public class EndToEndTests
     {
-        //[Fact(Skip = "need to wait until RemoteLeakyBucket window is shifted automatically")]
         [Fact]
         public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled_with_LeakyBucket()
         {
