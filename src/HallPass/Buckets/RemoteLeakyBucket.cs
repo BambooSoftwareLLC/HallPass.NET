@@ -60,21 +60,8 @@ namespace HallPass.Buckets
                 }
 
                 // if the ticket isn't yet valid, then wait for it to become valid
-                //if (ticket.IsNotYetValid())
-                //    await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken);
-
-                //debug
-                try
-                {
-                    if (ticket.IsNotYetValid())
-                        await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-
-                    throw;
-                }
-                //debug
+                if (ticket.IsNotYetValid())
+                    await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken);
 
                 // wait for shift outside of WaitUntilValidAsync to cover cases where a ticket is waiting in that method while the shift was updated
                 if (_shift + _shiftDelta > TimeSpan.Zero)
@@ -96,20 +83,23 @@ namespace HallPass.Buckets
                 var response = await _hallPass.GetTicketsAsync(_key, _instanceId, _rate, _frequency, _capacity, cancellationToken).ConfigureAwait(false);
                 tickets = response.HallPasses;
 
-                // update shift atomically
-                while (true)
+                // update shift atomically, but only if the new shift is actually a later version
+                if (response.ShiftInfo.Version > _shiftVersion)
                 {
-                    // try to take the lock until successful
-                    if (0 != Interlocked.Exchange(ref _shifting, 1))
-                        continue;
+                    while (true)
+                    {
+                        // try to take the lock until successful
+                        if (0 != Interlocked.Exchange(ref _shifting, 1))
+                            continue;
 
-                    _shift = response.ShiftInfo.Shift;
-                    _shiftDelta = TimeSpan.Zero;
-                    _shiftVersion = response.ShiftInfo.Version;
+                        _shift = response.ShiftInfo.Shift;
+                        _shiftDelta = TimeSpan.Zero;
+                        _shiftVersion = response.ShiftInfo.Version;
 
-                    // release lock
-                    Interlocked.Exchange(ref _shifting, 0);
-                    break;
+                        // release lock
+                        Interlocked.Exchange(ref _shifting, 0);
+                        break;
+                    }
                 }
             }
             catch (HallPassAuthenticationException ex)
