@@ -10,9 +10,11 @@ namespace HallPass.Configuration
 {
     internal class LeakyBucketConfigurationBuilder : IBucketConfigurationBuilder
     {
-        private readonly int _leakAmount;
-        private readonly TimeSpan _leakRate;
+        private readonly int _rate;
+        private readonly TimeSpan _frequency;
         private readonly int _capacity;
+
+        public TimeSpan Frequency => _frequency;
 
         private Func<IServiceProvider, Func<HttpRequestMessage, IBucket>> _factory;
         private readonly Func<HttpRequestMessage, bool> _isTriggeredBy;
@@ -21,16 +23,16 @@ namespace HallPass.Configuration
         private readonly Func<HttpRequestMessage, string> _instanceIdSelector;
 
         public LeakyBucketConfigurationBuilder(
-            int leakAmount,
-            TimeSpan leakRate,
+            int rate,
+            TimeSpan frequency,
             int capacity,
             Func<IServiceProvider, Func<HttpRequestMessage, IBucket>> factory,
             Func<HttpRequestMessage, bool> isTriggeredBy,
             Func<HttpRequestMessage, string> keySelector,
             Func<HttpRequestMessage, string> instanceIdSelector)
         {
-            _leakAmount = leakAmount;
-            _leakRate = leakRate;
+            _rate = rate;
+            _frequency = frequency;
             _capacity = capacity;
             _factory = factory;
             _isTriggeredBy = isTriggeredBy;
@@ -52,8 +54,8 @@ namespace HallPass.Configuration
                 {
                     var bucket = new RemoteLeakyBucket(
                         apiFactory.GetOrCreate(clientId, clientSecret),
-                        _leakAmount,
-                        _leakRate,
+                        _rate,
+                        _frequency,
                         _capacity,
                         _keySelector(httpRequestMessage),
                         _instanceIdSelector(httpRequestMessage));

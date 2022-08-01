@@ -3,6 +3,7 @@ using HallPass.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
+using System.Linq;
 
 namespace HallPass
 {
@@ -14,16 +15,18 @@ namespace HallPass
             var options = HallPassOptions.Default;
             config(options);
 
+            var maxTimeout = options.BucketConfigurationBuilders.Select(b => b.Frequency).Max() * 1.1;
+
             // add that handler to the HallPass client's pipeline
             if (options.UseDefaultHttpClient)
             {
                 services
-                    .AddHttpClient(Options.DefaultName)
+                    .AddHttpClient(Options.DefaultName, c => c.Timeout = maxTimeout)
                     .AddHttpMessageHandler(serviceProvider => new HallPassMessageHandler(serviceProvider, options));
             }
 
             services
-                .AddHttpClient(Constants.DEFAULT_HALLPASS_HTTPCLIENT_NAME)
+                .AddHttpClient(Constants.DEFAULT_HALLPASS_HTTPCLIENT_NAME, c => c.Timeout = maxTimeout)
                 .AddHttpMessageHandler(serviceProvider => new HallPassMessageHandler(serviceProvider, options));
 
             // add a client for calling the HallPass API

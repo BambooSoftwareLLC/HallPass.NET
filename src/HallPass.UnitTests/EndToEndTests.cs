@@ -229,5 +229,38 @@ namespace HallPass.UnitTests
                 response.EnsureSuccessStatusCode();
             }
         }
+
+        /// <summary>
+        /// Dotnet's HttpClient has a default timeout of 100 seconds. What happens if we go over that with HallPass?
+        /// </summary>
+        [Fact]
+        public async Task Can_have_wait_times_longer_than_100_seconds()
+        {
+            var traceId = Guid.NewGuid().ToString()[..6];
+            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/1-rate-110000-milliseconds-1-capacity/{traceId}";
+
+            // configure dependency injection that uses HallPass configuration extensions
+            var services = new ServiceCollection();
+
+            services.AddHallPass(hallPass =>
+            {
+                hallPass.UseDefaultHttpClient = true;
+
+                // use HallPass locally
+                hallPass.UseLeakyBucket(uri, 1, TimeSpan.FromSeconds(110), 1, key: traceId);
+            });
+
+            // make a loop of API calls to the throttled endpoint
+            var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("hallpass-api-key", TestConfig.HallPassTestApiKey());
+
+            for (int i = 0; i < 2; i++)
+            {
+                var response = await httpClient.GetAsync(uri);
+                response.EnsureSuccessStatusCode();
+            }
+        }
     }
 }
