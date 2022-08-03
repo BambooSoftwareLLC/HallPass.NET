@@ -24,7 +24,7 @@ namespace HallPass
 
                 // register hallpass API rate limits
                 options.UseLeakyBucket("https://api.hallpass.dev/oauth/token", 30, TimeSpan.FromMinutes(1), 30);
-                options.UseLeakyBucket("https://api.hallpass.dev/hallpasses", 100, TimeSpan.FromMinutes(1), 30);
+                options.UseLeakyBucket("https://api.hallpass.dev/hallpasses", 100, TimeSpan.FromMinutes(1), 100);
 
                 return options;
             }
