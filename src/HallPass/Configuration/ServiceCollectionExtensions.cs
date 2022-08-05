@@ -15,7 +15,10 @@ namespace HallPass
             var options = HallPassOptions.Default;
             config(options);
 
-            var maxTimeout = options.BucketConfigurationBuilders.Select(b => b.Frequency).Max() * 1.1;
+            // .NET uses a default timeout for HttpClient of 100 seconds. If we need more than that, we'll adjust
+            var defaultMaxTimeout = TimeSpan.FromSeconds(100);
+            var potentialMaxTimeout = options.BucketConfigurationBuilders.Select(b => b.Frequency).Max() * 1.1;
+            var maxTimeout = defaultMaxTimeout > potentialMaxTimeout ? defaultMaxTimeout : potentialMaxTimeout;
 
             // add that handler to the HallPass client's pipeline
             if (options.UseDefaultHttpClient)
