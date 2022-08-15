@@ -6,16 +6,15 @@ namespace HallPass.IntegrationTests
 {
     public class EndToEndTests
     {
-        [Fact(Skip = "flaky")]
+        [Fact]
         public async Task Can_make_concurrent_requests_from_multiple_instances_that_are_properly_throttled_with_LeakyBucket()
         {
             var instances = Enumerable.Range(1, 3);
             var traceId = Guid.NewGuid().ToString()[..6];
-            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/5-rate-10000-milliseconds-5-capacity/{traceId}";
+            var uri = "https://api.ratelimited.dev/key/20-per-minute";
 
             var clientId = TestConfig.HallPassClientId();
             var clientSecret = TestConfig.HallPassClientSecret();
-            var apiKey = TestConfig.HallPassTestApiKey();
 
             var tasks = instances
                 .Select(_ => Task.Run(async () =>
@@ -27,7 +26,7 @@ namespace HallPass.IntegrationTests
                     {
                         // use HallPass remotely
                         hallPass
-                            .UseLeakyBucket(uri, 5, TimeSpan.FromSeconds(10), 5, key: uri)
+                            .UseLeakyBucket(uri, 20, TimeSpan.FromMinutes(1), 20, key: uri)
                             .ForMultipleInstances(clientId, clientSecret);
                     });
 
@@ -38,7 +37,7 @@ namespace HallPass.IntegrationTests
                     for (int i = 0; i < 10; i++)
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
-                        httpClient.DefaultRequestHeaders.Add("hallpass-api-key", apiKey);
+                        httpClient.DefaultRequestHeaders.Add("key", traceId);
 
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
@@ -54,11 +53,10 @@ namespace HallPass.IntegrationTests
         {
             // setup
             var traceId = Guid.NewGuid().ToString()[..6];
-            var uri = $"{TestConfig.HallPassTestApiBaseUrl()}/leaky-bucket/100-rate-60000-milliseconds-100-capacity/{traceId}";
+            var uri = "https://api.ratelimited.dev/key/100-per-minute";
 
             var clientId = TestConfig.HallPassClientId();
             var clientSecret = TestConfig.HallPassClientSecret();
-            var apiKey = TestConfig.HallPassTestApiKey();
 
             // configure dependency injection that uses HallPass configuration extensions
             var services = new ServiceCollection();
@@ -84,7 +82,7 @@ namespace HallPass.IntegrationTests
                     for (int i = 0; i < 10; i++)
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
-                        httpClient.DefaultRequestHeaders.Add("hallpass-api-key", apiKey);
+                        httpClient.DefaultRequestHeaders.Add("key", traceId);
 
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
@@ -105,7 +103,7 @@ namespace HallPass.IntegrationTests
                     for (int i = 0; i < 10; i++)
                     {
                         var httpClient = httpClientFactory.CreateHallPassClient();
-                        httpClient.DefaultRequestHeaders.Add("hallpass-api-key", apiKey);
+                        httpClient.DefaultRequestHeaders.Add("key", traceId);
 
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
