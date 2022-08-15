@@ -10,7 +10,7 @@ namespace HallPass.IntegrationTests
 {
     public class RemoteLeakyBucketTests
     {
-        [Fact]
+        [Fact(Skip = "prefer end-to-end tests")]
         public async Task GetTicketAsync___should_allow_15_requests_in_14_seconds_with_TokenBucket_allowing_5_request_every_5_seconds()
         {
             var cache = new CachingService();
@@ -39,7 +39,7 @@ namespace HallPass.IntegrationTests
             inTimeTickets.Count().ShouldBe(15);
         }
 
-        [Fact]
+        [Fact(Skip = "prefer end-to-end tests")]
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_single_bucket()
         {
             var cache = new CachingService();
@@ -81,7 +81,7 @@ namespace HallPass.IntegrationTests
             }
         }
 
-        [Fact]
+        [Fact(Skip = "prefer end-to-end tests")]
         public async Task GetTicketAsync___should_work_for_multiple_threads_with_multiple_buckets_with_same_key_and_unique_instanceIds()
         {
             var cache = new CachingService();
@@ -131,7 +131,7 @@ namespace HallPass.IntegrationTests
             requestsInTime.Count.ShouldBeLessThanOrEqualTo(20);
         }
 
-        [Fact]
+        [Fact(Skip = "prefer end-to-end tests")]
         public async Task GetTicketAsync___should_work_for_multiple_time_windows_for_multiple_threads()
         {
             var cache = new CachingService();

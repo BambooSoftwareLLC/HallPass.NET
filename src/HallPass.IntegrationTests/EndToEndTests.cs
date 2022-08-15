@@ -48,7 +48,7 @@ namespace HallPass.IntegrationTests
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        [Fact(Skip = "need to wait until RemoteLeakyBucket window is shifted automatically")]
+        [Fact]
         public async Task Respects_HallPass_API_rate_limit_for_hallpasses_from_single_instance()
         {
             // setup
