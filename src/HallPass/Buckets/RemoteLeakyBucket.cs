@@ -181,6 +181,7 @@ namespace HallPass.Buckets
                 for (int i = 0; i < _rate; i++)
                 {
                     yield return Ticket.New(validFrom, validFrom + windowSize, windowId);
+                    generatedCount++;
                 }
 
                 validFrom += _frequency;
