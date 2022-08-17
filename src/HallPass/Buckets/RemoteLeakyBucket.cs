@@ -35,7 +35,7 @@ namespace HallPass.Buckets
         private decimal _movingAverage = 0;
         private DateTimeOffset _lastValidFrom;
         private const int MAX_REMOTE_CALLS = 10;
-        private int _refreshingMovingAverage = 0;
+        private int _failSafeLock = 0;
 
         public RemoteLeakyBucket(IHallPassApi hallPass, int rate, TimeSpan frequency, int capacity, string key = null, string instanceId = null)
         {
@@ -140,7 +140,7 @@ namespace HallPass.Buckets
             for (var i = 0; i < 5; i++)
             {
                 // take the lock
-                if (0 != Interlocked.Exchange(ref _refreshingMovingAverage, 1))
+                if (0 != Interlocked.Exchange(ref _failSafeLock, 1))
                     continue;
 
                 try
@@ -149,12 +149,14 @@ namespace HallPass.Buckets
                     // otherwise, use max
                     _remoteCalls = Math.Min(MAX_REMOTE_CALLS, _remoteCalls + 1);
                     _movingAverage = ((_movingAverage * (_remoteCalls - 1)) + tickets.Count) / _remoteCalls;
-                    _lastValidFrom = tickets.Select(t => t.ValidFrom).Max();
+
+                    var newValidFrom = tickets.Select(t => t.ValidFrom).Max();
+                    _lastValidFrom = newValidFrom > _lastValidFrom ? newValidFrom : _lastValidFrom;
                 }
                 finally
                 {
                     // release the lock
-                    Interlocked.Exchange(ref _refreshingMovingAverage, 0);
+                    Interlocked.Exchange(ref _failSafeLock, 0);
                 }
                 
                 break;
@@ -163,30 +165,49 @@ namespace HallPass.Buckets
 
         private IEnumerable<Ticket> GetFailSafeTickets()
         {
-            // if average is < 1, return 1
-            // otherwise generate new tickets with count equal to average
-            var countToGenerate = _movingAverage < 1
-                ? 1
-                : (int)Math.Floor(Math.Max(_movingAverage, 1));
+            var tickets = new List<Ticket>();
 
-            var now = DateTimeOffset.UtcNow;
-            var validFrom = _lastValidFrom + _frequency > now ? _lastValidFrom + _frequency : now;
-
-            var windowSize = _frequency * (_capacity / _rate);
-
-            var generatedCount = 0;
-            while (generatedCount < countToGenerate)
+            while (true)
             {
-                var windowId = Guid.NewGuid().ToString()[..6];
-                for (int i = 0; i < _rate; i++)
+                // take the lock
+                if (0 != Interlocked.Exchange(ref _failSafeLock, 1))
+                    continue;
+
+                try
                 {
-                    yield return Ticket.New(validFrom, validFrom + windowSize, windowId);
-                    generatedCount++;
+                    // if average is < 1, return 1
+                    // otherwise generate new tickets with count equal to average
+                    var countToGenerate = _movingAverage < 1
+                        ? 1
+                        : (int)Math.Floor(Math.Max(_movingAverage, 1));
+
+                    var now = DateTimeOffset.UtcNow;
+                    var validFrom = _lastValidFrom + _frequency > now ? _lastValidFrom + _frequency : now;
+
+                    var windowSize = _frequency * (_capacity / _rate);
+
+                    while (tickets.Count < countToGenerate)
+                    {
+                        var windowId = Guid.NewGuid().ToString()[..6];
+                        for (int i = 0; i < _rate; i++)
+                        {
+                            tickets.Add(Ticket.New(validFrom, validFrom + windowSize, windowId));
+                        }
+
+                        validFrom += _frequency;
+                        _lastValidFrom = validFrom;
+                    }
+                }
+                finally
+                {
+                    // release the lock
+                    Interlocked.Exchange(ref _failSafeLock, 0);
                 }
 
-                validFrom += _frequency;
-                _lastValidFrom = validFrom;
+                break;
             }
+
+            return tickets;
         }
 
         public async Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default)
