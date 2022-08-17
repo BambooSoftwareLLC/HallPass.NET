@@ -35,7 +35,7 @@ namespace HallPass.Buckets
         private decimal _movingAverage = 0;
         private DateTimeOffset _lastValidFrom;
         private const int MAX_REMOTE_CALLS = 10;
-        private readonly object _refreshingMovingAverage = new object();
+        private int _refreshingMovingAverage = 0;
 
         public RemoteLeakyBucket(IHallPassApi hallPass, int rate, TimeSpan frequency, int capacity, string key = null, string instanceId = null)
         {
@@ -68,6 +68,8 @@ namespace HallPass.Buckets
                     await Task.Delay(_shift + _shiftDelta, cancellationToken);
 
                 // if the ticket has already expired, then we need to try to get another ticket
+                // we use the more conservative window of [_shift + _shiftDelta, _shift] instead of
+                // [_shift + _shiftDelta, _shift + _shiftDelta] in order to, well... be more conservative
                 if (!ticket.IsExpired(_shift))
                     break;
             }
@@ -128,20 +130,34 @@ namespace HallPass.Buckets
 
             _tickets.Add(tickets);
 
-            RefreshMovingAverage(tickets);
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            Task.Run(() => RefreshMovingAverage(tickets), cancellationToken);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         }
 
         private void RefreshMovingAverage(IReadOnlyCollection<Ticket> tickets)
         {
-            lock (_refreshingMovingAverage)
+            for (var i = 0; i < 5; i++)
             {
-                // if remote calls < max, use actual calls
-                // otherwise, use max
-                _remoteCalls = Math.Min(MAX_REMOTE_CALLS, _remoteCalls + 1);
+                // take the lock
+                if (0 != Interlocked.Exchange(ref _refreshingMovingAverage, 1))
+                    continue;
 
-                _movingAverage = ((_movingAverage * (_remoteCalls - 1)) + tickets.Count) / _remoteCalls;
-
-                _lastValidFrom = tickets.Select(t => t.ValidFrom).Max();
+                try
+                {
+                    // if remote calls < max, use actual calls
+                    // otherwise, use max
+                    _remoteCalls = Math.Min(MAX_REMOTE_CALLS, _remoteCalls + 1);
+                    _movingAverage = ((_movingAverage * (_remoteCalls - 1)) + tickets.Count) / _remoteCalls;
+                    _lastValidFrom = tickets.Select(t => t.ValidFrom).Max();
+                }
+                finally
+                {
+                    // release the lock
+                    Interlocked.Exchange(ref _refreshingMovingAverage, 0);
+                }
+                
+                break;
             }
         }
 

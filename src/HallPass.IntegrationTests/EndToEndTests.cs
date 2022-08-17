@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
-using System.Collections.Concurrent;
 
 namespace HallPass.IntegrationTests
 {
@@ -33,11 +32,11 @@ namespace HallPass.IntegrationTests
                     // make a loop of API calls to the throttled endpoint
                     var serviceProvider = services.BuildServiceProvider(validateScopes: true);
                     var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+                    var httpClient = httpClientFactory.CreateHallPassClient();
+                    httpClient.DefaultRequestHeaders.Add("key", traceId);
 
                     for (int i = 0; i < 10; i++)
                     {
-                        var httpClient = httpClientFactory.CreateHallPassClient();
-                        httpClient.DefaultRequestHeaders.Add("key", traceId);
 
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
@@ -71,6 +70,8 @@ namespace HallPass.IntegrationTests
 
             var serviceProvider = services.BuildServiceProvider(validateScopes: true);
             var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateHallPassClient();
+            httpClient.DefaultRequestHeaders.Add("key", traceId);
 
             // check time
             var start = DateTimeOffset.Now;
@@ -81,9 +82,6 @@ namespace HallPass.IntegrationTests
                 {
                     for (int i = 0; i < 10; i++)
                     {
-                        var httpClient = httpClientFactory.CreateHallPassClient();
-                        httpClient.DefaultRequestHeaders.Add("key", traceId);
-
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
                     }
@@ -102,9 +100,6 @@ namespace HallPass.IntegrationTests
                 {
                     for (int i = 0; i < 10; i++)
                     {
-                        var httpClient = httpClientFactory.CreateHallPassClient();
-                        httpClient.DefaultRequestHeaders.Add("key", traceId);
-
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
                     }
