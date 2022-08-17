@@ -92,12 +92,25 @@ namespace HallPass.Buckets
                         if (0 != Interlocked.Exchange(ref _shifting, 1))
                             continue;
 
-                        _shift = response.ShiftInfo.Shift;
-                        _shiftDelta = TimeSpan.Zero;
-                        _shiftVersion = response.ShiftInfo.Version;
+                        if (response.ShiftInfo.Version <= _shiftVersion)
+                        {
+                            // release lock
+                            Interlocked.Exchange(ref _shifting, 0);
+                            break;
+                        }
 
-                        // release lock
-                        Interlocked.Exchange(ref _shifting, 0);
+                        try
+                        {
+                            _shift = response.ShiftInfo.Shift;
+                            _shiftDelta = TimeSpan.Zero;
+                            _shiftVersion = response.ShiftInfo.Version;
+                        }
+                        finally
+                        {
+                            // release lock
+                            Interlocked.Exchange(ref _shifting, 0);
+                        }
+
                         break;
                     }
                 }
@@ -170,20 +183,26 @@ namespace HallPass.Buckets
                     if (0 != Interlocked.Exchange(ref _shifting, 1))
                         continue;
 
-                    var shiftDelta = DateTimeOffset.UtcNow - (ticket.ValidFrom + _shift);
-                    _shiftDelta += shiftDelta;
+                    try
+                    {
+                        var shiftDelta = DateTimeOffset.UtcNow - (ticket.ValidFrom + _shift);
+                        _shiftDelta += shiftDelta;
 
-                    // while locked, update remote server
-                    UpdateShiftResult updateShiftResult = await _hallPass
-                        .UpdateShiftAsync(shiftDelta, ticket.WindowId, _shiftVersion, _key, _rate, _frequency, _capacity, cancellationToken)
-                        .ConfigureAwait(false);
+                        // while locked, update remote server
+                        UpdateShiftResult updateShiftResult = await _hallPass
+                            .UpdateShiftAsync(shiftDelta, ticket.WindowId, _shiftVersion, _key, _rate, _frequency, _capacity, cancellationToken)
+                            .ConfigureAwait(false);
 
-                    _shift = updateShiftResult.Shift;
-                    _shiftDelta = TimeSpan.Zero;
-                    _shiftVersion = updateShiftResult.Version;
-
-                    // release lock
-                    Interlocked.Exchange(ref _shifting, 0);
+                        _shift = updateShiftResult.Shift;
+                        _shiftDelta = TimeSpan.Zero;
+                        _shiftVersion = updateShiftResult.Version;
+                    }
+                    finally
+                    {
+                        // release lock
+                        Interlocked.Exchange(ref _shifting, 0);
+                    }
+                    
                     break;
                 }
             }
