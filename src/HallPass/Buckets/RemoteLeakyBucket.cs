@@ -67,17 +67,17 @@ namespace HallPass.Buckets
                     _logger.LogDebug("Refilled");
                 }
 
-                using (_logger.BeginScope("Pending_HallPass_Ticket: {Pending_HallPass_Ticket}", ticket))
+                using (_logger.BeginScope("{Pending_HallPass_Ticket}", ticket.Dump()))
                 {
                     // if the ticket isn't yet valid, then wait for it to become valid
                     if (ticket.IsNotYetValid())
                     {
-                        _logger.LogDebug("Waiting until valid - {ValidDetails}",
+                        _logger.LogDebug("{WaitingUntil}",
                             new
                             {
                                 ValidFrom = ticket.ValidFrom,
                                 SecondsUntilValid = (DateTimeOffset.UtcNow - ticket.ValidFrom).TotalSeconds
-                            });
+                            }.Dump());
 
                         await ticket.WaitUntilValidAsync(cancellationToken: cancellationToken);
 
@@ -87,12 +87,12 @@ namespace HallPass.Buckets
                     // wait for shift outside of WaitUntilValidAsync to cover cases where a ticket is waiting in that method while the shift was updated
                     if (_shift + _shiftDelta > TimeSpan.Zero)
                     {
-                        _logger.LogDebug("Waiting for extra {Shift} adjustments",
+                        _logger.LogDebug("{ShiftAdjustments}",
                             new
                             {
                                 ShiftDelta = _shiftDelta.TotalSeconds,
                                 Shift = _shift.TotalSeconds
-                            });
+                            }.Dump());
 
                         await Task.Delay(_shift + _shiftDelta, cancellationToken);
 
@@ -127,9 +127,9 @@ namespace HallPass.Buckets
                 var response = await _hallPass.GetTicketsAsync(_key, _instanceId, _rate, _frequency, _capacity, cancellationToken).ConfigureAwait(false);
                 tickets = response.HallPasses;
 
-                _logger.LogDebug("{Tickets} retrieved", new { Tickets = tickets });
+                _logger.LogDebug("{Tickets}", tickets.Dump());
 
-                _logger.LogDebug("Preparing to adjust shift based on new tickets {ShiftVersion}", new { NewVersion = response.ShiftInfo.Version, OldVersion = _shiftVersion });
+                _logger.LogDebug("{ShiftVersion}", new { NewVersion = response.ShiftInfo.Version, OldVersion = _shiftVersion }.Dump());
 
                 // update shift atomically, but only if the new shift is actually a later version
                 if (response.ShiftInfo.Version > _shiftVersion)
@@ -150,7 +150,7 @@ namespace HallPass.Buckets
 
                         if (response.ShiftInfo.Version <= _shiftVersion)
                         {
-                            _logger.LogDebug("Shift versions have changed, new version is out of date {ShiftVersion}", new { NewVersion = response.ShiftInfo.Version, OldVersion = _shiftVersion });
+                            _logger.LogDebug("{OutOfDateShiftVersion}", new { NewVersion = response.ShiftInfo.Version, OldVersion = _shiftVersion }.Dump());
 
                             // release lock
                             Interlocked.Exchange(ref _shifting, 0);
@@ -187,18 +187,18 @@ namespace HallPass.Buckets
             }
             catch (HallPassAuthenticationException ex)
             {
-                _logger.LogError("HallPassAuthenticationException: {Exception}", ex);
+                _logger.LogError("{Exception}", ex.Dump());
 
                 throw;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("{Exception} when retrieving tickets", ex);
+                _logger.LogWarning("{Exception}", ex.Dump());
 
                 tickets = GetFailSafeTickets().ToList();
             }
 
-            _logger.LogDebug("Adding {Tickets} to collection", tickets);
+            _logger.LogDebug("{AddingTickets}", tickets.Dump());
 
             _tickets.Add(tickets);
 
@@ -258,7 +258,7 @@ namespace HallPass.Buckets
         {
             var tickets = new List<Ticket>();
 
-            using (_logger.BeginScope("GetFailSafeTickets: {GetFailSafeTickets}", true))
+            using (_logger.BeginScope("{GetFailSafeTickets}", true))
             {
                 while (true)
                 {
@@ -285,13 +285,13 @@ namespace HallPass.Buckets
 
                         var windowSize = _frequency * (_capacity / _rate);
 
-                        _logger.LogDebug("Generating new tickets {Details}",
+                        _logger.LogDebug("{FailSafeTicketsDetails}",
                             new
                             {
                                 CountToGenerate = countToGenerate,
                                 ValidFrom = validFrom,
                                 WindowSizeSeconds = windowSize.TotalSeconds
-                            });
+                            }.Dump());
 
                         while (tickets.Count < countToGenerate)
                         {
@@ -304,7 +304,7 @@ namespace HallPass.Buckets
                             validFrom += _frequency;
                             _lastValidFrom = validFrom;
 
-                            _logger.LogDebug("Tickets generated: {Tickets}", tickets);
+                            _logger.LogDebug("{GeneratedTickets}", tickets.Dump());
                         }
                     }
                     finally
@@ -328,7 +328,7 @@ namespace HallPass.Buckets
 
         public async Task ShiftWindowAsync(Ticket ticket, CancellationToken cancellationToken = default)
         {
-            using (_logger.BeginScope("ShiftWindow: {ShiftWindow}", ticket.WindowId))
+            using (_logger.BeginScope("{ShiftWindow}", ticket.WindowId))
             {
                 if (_windowIds.TryAdd(ticket.WindowId))
                 {
@@ -354,7 +354,7 @@ namespace HallPass.Buckets
                             var shiftDelta = DateTimeOffset.UtcNow - (ticket.ValidFrom + _shift);
                             _shiftDelta += shiftDelta;
 
-                            _logger.LogDebug("Updating shift to API {ShiftInfo}",
+                            _logger.LogDebug("{ShiftInfo}",
                                 new
                                 {
                                     ShiftDelta = shiftDelta,
@@ -364,14 +364,14 @@ namespace HallPass.Buckets
                                     Rate = _rate,
                                     Frequency = _frequency,
                                     Capacity = _capacity
-                                });
+                                }.Dump());
 
                             // while locked, update remote server
                             UpdateShiftResult updateShiftResult = await _hallPass
                                 .UpdateShiftAsync(shiftDelta, ticket.WindowId, _shiftVersion, _key, _rate, _frequency, _capacity, cancellationToken)
                                 .ConfigureAwait(false);
 
-                            _logger.LogDebug("Shift updated at API with {UpdateShiftResult}", updateShiftResult);
+                            _logger.LogDebug("{UpdateShiftResult}", updateShiftResult.Dump());
 
                             _shift = updateShiftResult.Shift;
                             _shiftDelta = TimeSpan.Zero;

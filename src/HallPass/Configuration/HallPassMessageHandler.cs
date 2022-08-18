@@ -58,7 +58,7 @@ namespace HallPass.Configuration
         {
             var requestId = Guid.NewGuid().ToString();
 
-            using (_logger.BeginScope("HallPass_RequestId: {HallPass_RequestId}", requestId))
+            using (_logger.BeginScope("{HallPass_RequestId}", requestId))
             {
                 _logger.LogDebug("Starting HallPass request");
 
@@ -77,13 +77,13 @@ namespace HallPass.Configuration
 
                 var tasks = buckets.Select(async bucket =>
                 {
-                    using (_logger.BeginScope("HallPass_Bucket: {HallPass_Bucket}", bucket))
+                    using (_logger.BeginScope("{HallPass_Bucket}", bucket.Dump()))
                     {
                         _logger.LogDebug("Acquiring ticket");
 
                         var ticket = await bucket.GetTicketAsync(cancellationToken).ConfigureAwait(false);
 
-                        _logger.LogDebug("Acquired {Ticket}", ticket);
+                        _logger.LogDebug("Acquired {Ticket}", ticket.Dump());
 
                         return (ticket, bucket);
                     }
@@ -104,8 +104,8 @@ namespace HallPass.Configuration
                 {
                     var scopeProps = new Dictionary<string, object>
                     {
-                        { "HallPass_Bucket", tr.bucket },
-                        { "HallPass_Ticket", tr.ticket }
+                        { "HallPass_Bucket", tr.bucket.Dump() },
+                        { "HallPass_Ticket", tr.ticket.Dump() }
                     };
                     using (_logger.BeginScope(scopeProps))
                     {
