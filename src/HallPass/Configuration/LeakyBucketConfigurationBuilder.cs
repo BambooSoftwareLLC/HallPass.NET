@@ -2,6 +2,7 @@
 using HallPass.Buckets;
 using LazyCache;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Http;
 using System.Text;
@@ -16,7 +17,7 @@ namespace HallPass.Configuration
 
         public TimeSpan Frequency => _frequency;
 
-        private Func<IServiceProvider, Func<HttpRequestMessage, IBucket>> _factory;
+        private Func<IServiceProvider, ILogger, Func<HttpRequestMessage, IBucket>> _factory;
         private readonly Func<HttpRequestMessage, bool> _isTriggeredBy;
         
         private readonly Func<HttpRequestMessage, string> _keySelector;
@@ -26,7 +27,7 @@ namespace HallPass.Configuration
             int rate,
             TimeSpan frequency,
             int capacity,
-            Func<IServiceProvider, Func<HttpRequestMessage, IBucket>> factory,
+            Func<IServiceProvider, ILogger, Func<HttpRequestMessage, IBucket>> factory,
             Func<HttpRequestMessage, bool> isTriggeredBy,
             Func<HttpRequestMessage, string> keySelector,
             Func<HttpRequestMessage, string> instanceIdSelector)
@@ -46,7 +47,7 @@ namespace HallPass.Configuration
 
         public IBucketConfigurationBuilder ForMultipleInstances(string clientId, string clientSecret)
         {
-            _factory = services =>
+            _factory = (services, logger) =>
             {
                 var apiFactory = services.GetService<HallPassApiFactory>();
 
@@ -58,7 +59,8 @@ namespace HallPass.Configuration
                         _frequency,
                         _capacity,
                         _keySelector(httpRequestMessage),
-                        _instanceIdSelector(httpRequestMessage));
+                        _instanceIdSelector(httpRequestMessage),
+                        logger);
 
                     return bucket;
                 };
@@ -67,10 +69,10 @@ namespace HallPass.Configuration
             return this;
         }
 
-        BucketConfiguration IBucketConfigurationBuilder.Build(IServiceProvider services)
+        BucketConfiguration IBucketConfigurationBuilder.Build(IServiceProvider services, ILogger logger)
         {
             var cache = services.GetRequiredService<IAppCache>();
-            return new(_factory(services), _isTriggeredBy, _keySelector, _instanceIdSelector, cache);
+            return new(_factory(services, logger), _isTriggeredBy, _keySelector, _instanceIdSelector, cache);
         }
 
         private Func<HttpRequestMessage, string> EscapeString(Func<HttpRequestMessage, string> innerFunc)

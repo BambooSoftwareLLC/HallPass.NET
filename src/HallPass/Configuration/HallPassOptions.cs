@@ -58,7 +58,7 @@ namespace HallPass
                 requests,
                 duration,
                 capacity,
-                factory: services => request => new LeakyBucket(requests, duration, capacity),
+                factory: (services, logger) => request => new LeakyBucket(requests, duration, capacity, logger),
                 isTriggeredBy: httpRequestMessage => httpRequestMessage.RequestUri.ToString().Contains(uriPattern, stringComparison),
                 keySelector: request => key,
                 instanceIdSelector: request => instanceId);
@@ -83,7 +83,7 @@ namespace HallPass
                 requests,
                 duration,
                 capacity,
-                factory: services => request => new LeakyBucket(requests, duration, capacity),
+                factory: (services, logger) => request => new LeakyBucket(requests, duration, capacity, logger),
                 isTriggeredBy: isTriggeredBy,
                 keySelector: keySelector ?? (request => backupKey),
                 instanceIdSelector: instanceIdSelector ?? (request => backupId));

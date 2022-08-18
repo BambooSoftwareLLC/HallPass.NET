@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,11 +24,15 @@ namespace HallPass.Buckets
         private DateTimeOffset _lastRefill = DateTimeOffset.UtcNow;
         private int _refilling = 0;
 
-        public LeakyBucket(int rate, TimeSpan frequency, int capacity)
+        private readonly ILogger _logger;
+
+        public LeakyBucket(int rate, TimeSpan frequency, int capacity, ILogger logger = null)
         {
             _rate = rate;
             _frequency = frequency;
             _capacity = capacity;
+
+            _logger = logger;
 
             // fill initial capacity
             Refill(validFrom: DateTimeOffset.UtcNow, burst: true);
