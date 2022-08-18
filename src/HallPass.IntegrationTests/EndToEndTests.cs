@@ -37,7 +37,6 @@ namespace HallPass.IntegrationTests
 
                     for (int i = 0; i < 10; i++)
                     {
-
                         var response = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
                         response.EnsureSuccessStatusCode();
                     }
