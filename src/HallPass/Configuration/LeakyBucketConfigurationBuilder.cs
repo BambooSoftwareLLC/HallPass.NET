@@ -45,30 +45,6 @@ namespace HallPass.Configuration
             _instanceIdSelector = EscapeString(instanceIdSelector ?? (request => backupId));
         }
 
-        public IBucketConfigurationBuilder ForMultipleInstances(string clientId, string clientSecret)
-        {
-            _factory = (services, logger) =>
-            {
-                var apiFactory = services.GetService<HallPassApiFactory>();
-
-                return httpRequestMessage =>
-                {
-                    var bucket = new RemoteLeakyBucket(
-                        apiFactory.GetOrCreate(clientId, clientSecret),
-                        _rate,
-                        _frequency,
-                        _capacity,
-                        _keySelector(httpRequestMessage),
-                        _instanceIdSelector(httpRequestMessage),
-                        logger);
-
-                    return bucket;
-                };
-            };
-
-            return this;
-        }
-
         BucketConfiguration IBucketConfigurationBuilder.Build(IServiceProvider services, ILogger logger)
         {
             var cache = services.GetRequiredService<IAppCache>();
