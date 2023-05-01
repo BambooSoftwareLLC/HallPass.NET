@@ -143,9 +143,9 @@ await Task.WhenAll(tasks);
 - Throttle a Bunch of Calls Across Distributed Systems - (demo is available at [hallpass.dev](https://hallpass.dev))
 - More Bucket Types (_Fixed Window_, _Sliding Log_, _Sliding Window_, _Query Cost_, _Concurrency Limit_)
 
-### DEMO: Throttle a Bunch of Calls Across Distributed Systems
+### COMING SOON: Throttle a Bunch of Calls Across Distributed Systems
 
-HallPass can now throttle calls across distributed systems IN NON-PRODUCTION ENVIRONMENTS. If you have multiple instances of an application running at once, but need to respect a single external API rate limit, or if you have multiple different applications running but still need to respect a single external API rate limit between all instances and applications, you're able to do so with minimal code changes.
+If demand is there, we can consider modifying HallPass to throttle calls across distributed systems. If you have multiple instances of an application running at once, but need to respect a single external API rate limit, or if you have multiple different applications running but still need to respect a single external API rate limit between all instances and applications, you would be able to do so with minimal code changes.
 
 #### Configuration
 
@@ -173,7 +173,7 @@ await httpClient.GetAsync($"https://api.bar.com/statuses");
 
 #### Distributed Throttling Notes
 
-This will be a paid service, but right now demo clients are available with very limited lifetimes, and the HallPass API itself will be rate-limited (with basic throttling and retries handled via the SDK code). We're still finalizing the pricing model, but hope to have a free tier available to demo soon!
+This would be a paid service, and the HallPass API itself will be rate-limited (with basic throttling and retries handled via the SDK code). We're still finalizing the pricing model, but hope to have a free tier available to demo soon!
 
 HallPass will take care of registering individual instances, "fairly" dolling out permissions, and tracking the global rate limit for your account/app and its usage on our servers.
 
